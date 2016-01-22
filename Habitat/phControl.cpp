@@ -10,7 +10,8 @@ void test()
 	int i = 0;
 	while (i < 20)
 	{
-		cout << i++ << endl;
+		cout << i << endl;
+		i += 2;
 		sleep(1);
 	}
 }
