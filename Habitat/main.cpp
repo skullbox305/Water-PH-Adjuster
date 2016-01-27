@@ -1,11 +1,18 @@
-#include "phControl.h"
-#include "sensorReader.h"
+#include "phSensor.h"
+#include "phAdjuster.h"
 
 #include <stdio.h>
+#include <iostream>
 #include <unistd.h>
+
+using namespace std;
  
 int main()
 {
-	test();
+	phSensor ph1(63);
+	cout << ph1.getBusAddress() << endl;
+	int test;
+	 
 	return 0;
+	
 }

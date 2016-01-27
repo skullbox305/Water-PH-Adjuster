@@ -28,21 +28,21 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="sensorReader.h">
+    <ClInclude Include="phSensor.h">
       <Filter>Header files</Filter>
     </ClInclude>
-    <ClInclude Include="phControl.h">
+    <ClInclude Include="phAdjuster.h">
       <Filter>Header files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="sensorReader.cpp">
-      <Filter>Source files</Filter>
-    </ClCompile>
-    <ClCompile Include="phControl.cpp">
-      <Filter>Source files</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="phSensor.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="phAdjuster.cpp">
       <Filter>Source files</Filter>
     </ClCompile>
   </ItemGroup>
