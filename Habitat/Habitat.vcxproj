@@ -69,10 +69,12 @@
     <None Include="release.mak" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="i2c_iO.h" />
     <ClInclude Include="phAdjuster.h" />
     <ClInclude Include="phSensor.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="i2c_iO.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="phAdjuster.cpp" />
     <ClCompile Include="phSensor.cpp" />

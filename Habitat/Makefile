@@ -35,7 +35,7 @@ error:
 	$(error Invalid configuration, please check your inputs)
 endif
 
-SOURCEFILES := main.cpp phAdjuster.cpp phSensor.cpp
+SOURCEFILES := i2c_iO.cpp main.cpp phAdjuster.cpp phSensor.cpp
 EXTERNAL_LIBS := 
 EXTERNAL_LIBS_COPIED := $(foreach lib, $(EXTERNAL_LIBS),$(BINARYDIR)/$(notdir $(lib)))
 
