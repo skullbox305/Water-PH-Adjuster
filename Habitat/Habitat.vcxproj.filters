@@ -34,7 +34,7 @@
     <ClInclude Include="phAdjuster.h">
       <Filter>Header files</Filter>
     </ClInclude>
-    <ClInclude Include="i2c_iO.h">
+    <ClInclude Include="AtlasScientific_i2c_iO.h">
       <Filter>Header files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -48,7 +48,7 @@
     <ClCompile Include="phAdjuster.cpp">
       <Filter>Source files</Filter>
     </ClCompile>
-    <ClCompile Include="i2c_iO.cpp">
+    <ClCompile Include="AtlasScientific_i2c_iO.cpp">
       <Filter>Source files</Filter>
     </ClCompile>
   </ItemGroup>
