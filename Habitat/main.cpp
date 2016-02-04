@@ -1,5 +1,6 @@
 #include "phSensor.h"
 #include "phAdjuster.h"
+#include "AtlasScientific_i2c_iO.h"
 
 #include <iostream>
 #include <unistd.h>
@@ -10,8 +11,9 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <string.h>
 
-#define function 1
+#define function 13
 
 using namespace std;
  
@@ -21,12 +23,17 @@ int main()
 	string temp;
 	float acidCalibration;
 	float baseCalibration;	
+	int a;
+	string b;
 	
 	switch (function)
 	{
 	case 1: 
-		cout << ph1.getNewPHReading() << endl;
-		cout << ph1.getLastPHReading() << endl;
+		for (int i = 0; i < 10; i++)
+		{
+			cout << ph1.getNewPHReading() << endl;
+			ph1.startSleepmode();
+		}		
 		break;		
 	case 2:
 		cout << ph1.getCalibrationStatus() << endl;
@@ -50,7 +57,7 @@ int main()
 		cout << ph1.highpointCalibration(10) << endl;
 		break;
 	case 9:
-		cout << ph1.setNewBusAddress(0x64) << endl;
+		cout << ph1.setNewBusAddress(0x63) << endl;
 		cout << ph1.getNewPHReading() << endl;
 		break;
 	case 10:
@@ -65,6 +72,9 @@ int main()
 		cout << ph1.getSlope(acidCalibration, baseCalibration) << endl;
 		cout << "Acid calibration: " << acidCalibration << endl;
 		cout << "Base calibration: " << baseCalibration << endl;
+		break;
+	case 13:
+		cout << checkIfAddressIsFree(0x64) << endl;
 		break;
 	default:
 		break;

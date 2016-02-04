@@ -3,4 +3,6 @@
 
 bool writeI2C(const std::string &cmd, int device);
 bool readI2C(std::string &result, int device);
-bool initDevice(int busAddress, int &deviceID);
+int initDevice(int busAddress);
+bool checkIfAddressIsFree(int busAddress);
+bool takeBusControl(int busAddress);

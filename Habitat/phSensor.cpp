@@ -16,8 +16,15 @@ using namespace std;
 
 phSensor::phSensor(int busAddr)
 {
-	busAddress = busAddr;
-	initDevice(busAddr, deviceId);
+	if (checkIfAddressIsFree(busAddr))
+	{
+		busAddress = busAddr;
+		deviceId = initDevice(busAddr);
+		if (deviceId  < 0)
+		{
+		//exception
+		}		
+	}
 }
 
 
@@ -44,11 +51,14 @@ bool phSensor::setNewBusAddress(int newAddr)
 		if (writeI2C(string(buffer), deviceId))
 		{
 			sleep(3);
-
-			if (initDevice(newAddr, deviceId))
-			{				
-				busAddress = newAddr;
-				res = true;				
+			
+			if (checkIfAddressIsFree(newAddr))
+			{
+				if (initDevice(newAddr))
+				{				
+					busAddress = newAddr;
+					res = true;				
+				}
 			}
 		}
 	}	

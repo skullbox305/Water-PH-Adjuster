@@ -71,13 +71,19 @@
   <ItemGroup>
     <ClInclude Include="AtlasScientific_i2c_iO.h" />
     <ClInclude Include="phAdjuster.h" />
+    <ClInclude Include="phControl.h" />
     <ClInclude Include="phSensor.h" />
+    <ClInclude Include="dataToDB.h" />
+    <ClInclude Include="sensorReader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AtlasScientific_i2c_iO.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="phAdjuster.cpp" />
+    <ClCompile Include="phControl.cpp" />
     <ClCompile Include="phSensor.cpp" />
+    <ClCompile Include="dataToDB.cpp" />
+    <ClCompile Include="sensorReader.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

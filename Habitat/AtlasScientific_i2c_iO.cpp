@@ -6,6 +6,7 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <wiringPiI2C.h>
 
 using namespace std;
 
@@ -56,20 +57,32 @@ bool readI2C(string &result, int device)
 	return res;
 }
 
-bool initDevice(int busAddress, int &deviceID)
+int initDevice(int busAddress)
 {
-	int device = open("/dev/i2c-1", O_RDWR);
-	bool res = true;
-	
-	if (device < 0) {
-		perror("Failed to open the device.");
-		res = false;
+	return wiringPiI2CSetup(busAddress);
+}
+
+
+bool takeBusControl(int busAddress)
+{
+	bool res = false;
+	if (wiringPiI2CSetup(busAddress) != -1)
+	{
+		res = true;
 	}
-	else if (ioctl(device, I2C_SLAVE, busAddress) < 0) {
-		perror("Unable to set I2C slave address.");
-		res = false;
-	}
-	deviceID = device;
 	return res;
 }
 
+
+bool checkIfAddressIsFree(int busAddress)
+{
+	bool res = true;
+	int device = initDevice(busAddress);
+	string request = "request ACK";
+
+	if (write(device, request.c_str(), 1) == 1)
+	{
+		res = false;
+	}
+	return res;
+}

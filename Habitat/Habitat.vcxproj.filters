@@ -37,6 +37,15 @@
     <ClInclude Include="AtlasScientific_i2c_iO.h">
       <Filter>Header files</Filter>
     </ClInclude>
+    <ClInclude Include="sensorReader.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="phControl.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="dataToDB.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -49,6 +58,15 @@
       <Filter>Source files</Filter>
     </ClCompile>
     <ClCompile Include="AtlasScientific_i2c_iO.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="sensorReader.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="phControl.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="dataToDB.cpp">
       <Filter>Source files</Filter>
     </ClCompile>
   </ItemGroup>

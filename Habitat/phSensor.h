@@ -22,6 +22,9 @@ public:
 	bool getDeviceInfo(std::string &info);
 	bool getSlope(float &acidCalibration, float &baseCalibration);
 	
+	std::string getDeviceModell();
+	
+	
 private:
 	bool calibration(std::string cmd, float phVal);
 	float lastPHValue;
