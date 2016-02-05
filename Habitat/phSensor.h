@@ -5,12 +5,11 @@
 class phSensor
 {
 public:
-	phSensor(int busAddr);
-	virtual ~phSensor();
+	phSensor(int phID);
+	~phSensor();
 	float getNewPHReading();
 	float getLastPHReading();
 	int getBusAddress();
-	bool setNewBusAddress(int newAddr);
 	float getTempCompensation();
 	bool setTempCompensation(float newTemp);
 	int getCalibrationStatus();
@@ -21,13 +20,15 @@ public:
 	bool startSleepmode();
 	bool getDeviceInfo(std::string &info);
 	bool getSlope(float &acidCalibration, float &baseCalibration);
-	
-	std::string getDeviceModell();
+	bool setNewBusAddress(int newAddr);
 	
 	
 private:
 	bool calibration(std::string cmd, float phVal);
-	float lastPHValue;
-	int deviceId;
-	int busAddress;
+	bool initPh();
+	std::string getDeviceModell();
+	float lastPHValue = 0;
+	int deviceId = 0;
+	int busAddress = 0;
+	int phID;
 };

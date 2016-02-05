@@ -5,7 +5,6 @@
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <wiringPiI2C.h>
 
 using namespace std;
@@ -74,11 +73,11 @@ bool takeBusControl(int busAddress)
 }
 
 
-bool checkIfAddressIsFree(int busAddress)
+bool checkIfAddressIsUsed(int busAddress)
 {
 	bool res = true;
 	int device = initDevice(busAddress);
-	string request = "request ACK";
+	string request = "";
 
 	if (write(device, request.c_str(), 1) == 1)
 	{

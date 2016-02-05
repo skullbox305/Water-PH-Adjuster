@@ -3,28 +3,18 @@
 #include "AtlasScientific_i2c_iO.h"
 
 #include <iostream>
-#include <unistd.h>
-#include <fcntl.h>
-#include <linux/i2c-dev.h>
-#include <sys/ioctl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <string.h>
 
-#define function 13
+#define function 14
 
 using namespace std;
  
 int main()
 {
-	phSensor ph1(0x63);
+	phSensor ph1(1);
 	string temp;
 	float acidCalibration;
 	float baseCalibration;	
-	int a;
-	string b;
 	
 	switch (function)
 	{
@@ -57,12 +47,10 @@ int main()
 		cout << ph1.highpointCalibration(10) << endl;
 		break;
 	case 9:
-		cout << ph1.setNewBusAddress(0x63) << endl;
-		cout << ph1.getNewPHReading() << endl;
+
 		break;
 	case 10:
-		cout << ph1.setNewBusAddress(0x63) << endl;
-		cout << ph1.startSleepmode() << endl;
+		
 		break;
 	case 11:
 		cout << ph1.getDeviceInfo(temp) << endl;
@@ -74,8 +62,17 @@ int main()
 		cout << "Base calibration: " << baseCalibration << endl;
 		break;
 	case 13:
-		cout << checkIfAddressIsFree(0x64) << endl;
+		cout << checkIfAddressIsUsed(0x64) << endl;
 		break;
+	case 14:
+		cout << "Address: " << ph1.getBusAddress() << endl;
+		cout << ph1.getDeviceInfo(temp) << endl;
+		cout << temp << endl;
+		cout << "PH Wert: " << ph1.getNewPHReading() << endl;
+		cout << ph1.startSleepmode() << endl;
+		cout << ph1.setNewBusAddress(0x63) << endl;
+		cout << "Address: " << ph1.getBusAddress() << endl;
+
 	default:
 		break;
 	}

@@ -1,35 +1,74 @@
 #include "phSensor.h"
 #include "AtlasScientific_i2c_iO.h"
 
-#include <fcntl.h>
-#include <linux/i2c-dev.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
 #include <iostream>
 #include <unistd.h>
 #include <string>
-#include <stdlib.h>
+#include <stdexcept>
 
 using namespace std;
 
-phSensor::phSensor(int busAddr)
-{
-	if (checkIfAddressIsFree(busAddr))
+#define factoryDefaultAddress 0x63
+#define firstPHAddress 0x3
+#define secondPHAddress 0x4
+
+phSensor::phSensor(int phID)
+{	
+	if (phID == 1 || phID == 2)
 	{
-		busAddress = busAddr;
-		deviceId = initDevice(busAddr);
-		if (deviceId  < 0)
+		this->phID = phID;
+		if (!initPh())
 		{
-		//exception
-		}		
+			throw runtime_error(string("Kein Geraet gefunden!"));
+		}
+	}
+	else
+	{
+		throw runtime_error(string("Zur Zeit sind nur PH-Modul 1 und 2 vorgesehen!"));
 	}
 }
 
 
 phSensor::~phSensor()
 {
+}
+
+
+bool phSensor::initPh()
+{
+	int address;
+	bool res = true;
+	
+	if (phID == 1)
+	{
+		address = firstPHAddress;
+	}
+	else if (phID == 2)
+	{
+		address = secondPHAddress;
+	}
+	
+	if (checkIfAddressIsUsed(address))
+	{
+		if (checkIfAddressIsUsed(factoryDefaultAddress))
+		{
+			res = false;
+		}
+		else
+		{
+			deviceId = initDevice(factoryDefaultAddress);
+			if (!setNewBusAddress(address))
+			{
+				res = false;
+			}
+		}
+	}
+	else
+	{
+		deviceId = initDevice(address);	
+		busAddress = address;
+	}
+	return res;
 }
 
 
@@ -49,16 +88,14 @@ bool phSensor::setNewBusAddress(int newAddr)
 		sprintf(buffer, "I2c,%d", newAddr);
 	
 		if (writeI2C(string(buffer), deviceId))
-		{
+		{		
 			sleep(3);
 			
-			if (checkIfAddressIsFree(newAddr))
-			{
-				if (initDevice(newAddr))
-				{				
-					busAddress = newAddr;
-					res = true;				
-				}
+			deviceId = initDevice(newAddr);
+			if (deviceId != -1)
+			{				
+				busAddress = newAddr;
+				res = true;				
 			}
 		}
 	}	
@@ -258,4 +295,11 @@ bool phSensor::getSlope(float &acidCalibration, float &baseCalibration)
 float phSensor::getLastPHReading()
 {
 	return lastPHValue;
+}
+
+
+std::string phSensor::getDeviceModell()
+{
+	
+	
 }
