@@ -43,7 +43,13 @@
     <ClInclude Include="phControl.h">
       <Filter>Header files</Filter>
     </ClInclude>
-    <ClInclude Include="dataToDB.h">
+    <ClInclude Include="databaseOperations.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="HabitatConfiguration.h">
       <Filter>Header files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -66,7 +72,10 @@
     <ClCompile Include="phControl.cpp">
       <Filter>Source files</Filter>
     </ClCompile>
-    <ClCompile Include="dataToDB.cpp">
+    <ClCompile Include="databaseOperations.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="HabitatConfiguration.cpp">
       <Filter>Source files</Filter>
     </ClCompile>
   </ItemGroup>

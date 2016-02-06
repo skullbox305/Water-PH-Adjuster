@@ -1,14 +1,25 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// file:	AtlasScientific_i2c_iO.cpp
+//
+// summary:	Implements the atlas scientific i 2c i o class
+////////////////////////////////////////////////////////////////////////////////////////////////////
 #include "AtlasScientific_i2c_iO.h"
 
 #include <string.h>
 #include <unistd.h>
-#include <linux/i2c-dev.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
 #include <wiringPiI2C.h>
 
 using namespace std;
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/// <summary>Writes a command string to a given i2c device.</summary>
+///
+/// <param name="cmd">   The command string i.e "Cal,mid,7.0".</param>
+/// <param name="device">The device.</param>
+///
+/// <returns>true if it succeeds, false if it fails.</returns>
+////////////////////////////////////////////////////////////////////////////////////////////////////
 bool writeI2C(const string &cmd, int device)
 {
 	if (write(device, cmd.c_str(), cmd.size()) != (int)cmd.size()) {
@@ -18,6 +29,15 @@ bool writeI2C(const string &cmd, int device)
 	return true;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/// <summary>Reads the response of a given i2c device.</summary>
+///
+/// <param name="result">[in,out] The result of the request.</param>
+/// <param name="device">The device.</param>
+///
+/// <returns>true if it succeeds, false if it fails.</returns>
+////////////////////////////////////////////////////////////////////////////////////////////////////
 bool readI2C(string &result, int device)
 {
 	char buffer[20] = { 0 };
@@ -56,32 +76,34 @@ bool readI2C(string &result, int device)
 	return res;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/// <summary>Initialises the i2c device.</summary>
+///
+/// <param name="busAddress">The i2c bus address of the device.</param>
+///
+/// <returns>The device.</returns>
+////////////////////////////////////////////////////////////////////////////////////////////////////
 int initDevice(int busAddress)
 {
 	return wiringPiI2CSetup(busAddress);
 }
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/// <summary>Take bus control. Not sure yet, how it will work under real condition, because I
+/// 	currently just have one module at hand.</summary>
+///
+/// <param name="busAddress">The i2c bus address of the device.</param>
+///
+/// <returns>true if it succeeds, false if it fails.</returns>
+////////////////////////////////////////////////////////////////////////////////////////////////////
 bool takeBusControl(int busAddress)
 {
 	bool res = false;
 	if (wiringPiI2CSetup(busAddress) != -1)
 	{
 		res = true;
-	}
-	return res;
-}
-
-
-bool checkIfAddressIsUsed(int busAddress)
-{
-	bool res = true;
-	int device = initDevice(busAddress);
-	string request = "";
-
-	if (write(device, request.c_str(), 1) == 1)
-	{
-		res = false;
 	}
 	return res;
 }

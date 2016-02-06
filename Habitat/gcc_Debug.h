@@ -338,6 +338,9 @@
 #ifndef __ULACCUM_IBIT__
 #define __ULACCUM_IBIT__ 32
 #endif
+#ifndef _REENTRANT
+#define _REENTRANT 1
+#endif
 #ifndef __UACCUM_EPSILON__
 #define __UACCUM_EPSILON__ 0x1P-16UK
 #endif
