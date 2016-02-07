@@ -15,21 +15,19 @@
 using namespace std;
 
 vector<phSensor*> phSensors;
-const int maxAmountPHModules = 2;
-const int factoryDefaultAddress = 0x63;
-const int startPHAddress = 0x3;
-bool slotsUsed[maxAmountPHModules] = { false };
+const int factoryDefaultPHAddress = 0x63;
 
 
 /// <summary>Default constructor.</summary>
 phSensor::phSensor()
 {
-	deviceId = initDevice(factoryDefaultAddress);
+	deviceId = initDevice(factoryDefaultPHAddress);
 	if (deviceId < 0)
 	{
 		throw runtime_error(string("error while opening ph on defaul address 0x63"));
 	}
-	busAddress = factoryDefaultAddress;	
+	busAddress = factoryDefaultPHAddress;
+	slotPosition = 0;
 }
 
 
@@ -41,7 +39,7 @@ phSensor::phSensor()
 ///
 /// <param name="phID">ID of the PH Slot (1 or 2 for the moment)</param>
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-phSensor::phSensor(int busAddr)
+phSensor::phSensor(int busAddr, int position)
 {	
 	deviceId = initDevice(busAddr);
 	if (deviceId < 0)
@@ -50,7 +48,8 @@ phSensor::phSensor(int busAddr)
 		sprintf(buffer, "%x", busAddr);
 		throw runtime_error(string("error while opening ph on address 0x" + string(buffer)));
 	}
-	busAddr = factoryDefaultAddress;	
+	busAddr = factoryDefaultPHAddress;	
+	slotPosition = position;
 }
 
 

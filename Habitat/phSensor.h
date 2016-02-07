@@ -8,7 +8,7 @@ class phSensor
 {
 public:
 	phSensor();
-	phSensor(int busAddr);
+	phSensor(int busAddr, int position);
 	~phSensor();
 	float getNewPHReading();
 	float getPHReading();
@@ -36,24 +36,14 @@ private:
 	
 	int deviceId;
 	int busAddress;
+	int slotPosition;
 };
 
 extern std::vector<phSensor*> phSensors; //während programm läuft immer aktiv. Beim beendet gibt OS speicher eh frei. Delete notwendig?
-extern const int maxAmountPHModules;
-extern const int factoryDefaultAddress;
-extern const int startPHAddress;
-extern bool slotsUsed[];
+extern const int factoryDefaultPHAddress;
 
-static void initPhModules()
-{
-	int address = startPHAddress;
-	
-	for (int i = 0; i++; i < maxAmountPHModules)
-	{
-		if (slotsUsed[i] == true)
-		{
-			phSensors.push_back(new phSensor(address));
-		}
-		address += 0x1;
-	}	
-};
+static void initPhModule(int addr, int slotPosition)
+{	
+	phSensors.push_back(new phSensor(addr, slotPosition));		
+}
+

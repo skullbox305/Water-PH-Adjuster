@@ -9,16 +9,8 @@ using namespace std;
 
 mutex *sensorMtx;
 
-
-void initSensorReader()
-{
-	initPhModules();
-}
-
-
 void startSensorReader(mutex *mtx)
 {
-	initSensorReader();
 	sensorMtx = mtx;
 	
 	while (1)
