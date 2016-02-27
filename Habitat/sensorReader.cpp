@@ -7,36 +7,34 @@
 
 using namespace std;
 
-mutex *sensorMtx;
 
-void startSensorReader(mutex *mtx)
-{
-	sensorMtx = mtx;
-	
+void startSensorReader()
+{	
 	while (1)
 	{
-		readSensors();
-		sleep(5);
+		readPH();
+		sleep(20);
 	}
 }
 
 
 void readPH()
 {
-	if (!phSensors.empty())
+	if (!phSensors.empty()) 
 	{
-		for (int i = 0; i++; i < phSensors.size())
+		for (int i = 0; i < phSensors.size(); i++)
 		{
-			cout << phSensors[i]->getNewPHReading() << endl;
-			sensorMtx->lock();
-			phSensors[i]->syncSharedMemory();
-			sensorMtx->unlock();
+			char buff[50];
+			snprintf(buff, sizeof(buff), "%.2f", phSensors[i]->getNewPHReading());
+			//phSensors[i]->startSleepmode();
+			string phStr = buff;
+			cout << phStr << endl;
 		}
+	}
+	else
+	{
+		cout << "kein ph" << endl;
 	}
 }
 
 
-void readSensors()
-{
-	readPH();
-}

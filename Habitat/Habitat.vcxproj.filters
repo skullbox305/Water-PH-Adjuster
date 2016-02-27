@@ -37,20 +37,23 @@
     <ClInclude Include="AtlasScientific_i2c_iO.h">
       <Filter>Header files</Filter>
     </ClInclude>
-    <ClInclude Include="sensorReader.h">
-      <Filter>Header files</Filter>
-    </ClInclude>
     <ClInclude Include="phControl.h">
       <Filter>Header files</Filter>
     </ClInclude>
     <ClInclude Include="databaseOperations.h">
       <Filter>Header files</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>Header files</Filter>
-    </ClInclude>
     <ClInclude Include="HabitatConfiguration.h">
       <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="sensorReader.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="globalMtx.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Resource files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -76,6 +79,9 @@
       <Filter>Source files</Filter>
     </ClCompile>
     <ClCompile Include="HabitatConfiguration.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="globalMtx.cpp">
       <Filter>Source files</Filter>
     </ClCompile>
   </ItemGroup>

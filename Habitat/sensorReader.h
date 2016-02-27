@@ -4,4 +4,4 @@
 
 void readPH();
 void readSensors();
-void startSensorReader(std::mutex &mtx);
+void startSensorReader();

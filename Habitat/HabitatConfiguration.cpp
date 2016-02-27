@@ -5,71 +5,83 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <array>
+#include <mutex>
 
 using namespace std;
 
-const int maxWaterSensorAmount = 16;
-const int waterSensorAddressSpace[] = { 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19 };
-array<string, 16> deviceList;
-int currentWaterSensorAmount;
+const int maxDeviceAmount = 16;
+const int startAddress = 3;
+array<string, maxDeviceAmount> deviceList;
+int currentDeviceAmount;
 
 void loadHabitatConfiguration()
 {	
 	deviceList.fill("");
-	currentWaterSensorAmount = 0;
-	checkAvailPHModules();
+	currentDeviceAmount = 0;
 	checkAvailModules();
 }
 
 
 void reloadHabitatConfiguration()
 {
-	if (clearSensorObjects() != currentWaterSensorAmount)
+	if (clearSensorObjects() != currentDeviceAmount)
 	{
 		perror("Es wurden nicht alle Objekte geloescht!");
 	}
 	deviceList.fill("");
-	currentWaterSensorAmount = 0;
+	currentDeviceAmount = 0;
 	checkAvailModules();
 }
 
 void checkAvailModules()
 {
-	checkAvailPHModules();
-}
-
-void checkAvailPHModules()
-{	
-	for (int i = 0; i < maxWaterSensorAmount; i++)
+	int address = startAddress;
+	for (int slotPosition = 0; slotPosition < maxDeviceAmount; slotPosition++)
 	{
-		int address = waterSensorAddressSpace[i];
 		if (checkIfAddressIsUsed(address))
 		{
-			phSensor ph(address, 0);
-			if (ph.checkDeviceModell() == true)
+			if (isPH(address, slotPosition))
 			{
-				deviceList[i] = "PH";
-				initPhModule(address, i);
-				currentWaterSensorAmount++;
+				deviceList[slotPosition] = "PH";
+				currentDeviceAmount++;
+			}
+			else
+			{
+				
 			}
 		}
-	}
+		address += 0x1;
+	}	
 }
 
-
-void addNewPHCircuit(int slotPosition)
+bool isPH(int address, int slotPosition)
 {
-	if (checkIfAddressIsUsed(factoryDefaultPHAddress))
+	bool res = false;
+	
+	phSensor ph(address,0);
+	if (ph.checkDeviceModell() == true)
 	{
-		if (checkIfAddressIsUsed(slotPosition))
+		initPhModule(address, slotPosition + 1); //start with 1, instead of 0
+		res = true;
+	}
+	return res;
+}
+
+void addNewCircuit(int slotPosition, int circuitType)
+{
+	int defaultAddress = getCircuitDefaultAddress(circuitType);
+	
+	if (checkIfAddressIsUsed(defaultAddress))
+	{
+		if (deviceList[slotPosition-1].empty())
 		{
-			if (changeFactoryAddress(slotPosition) == true)
+			if (changeFactoryAddress(slotPosition, circuitType) == true)
 			{
 				reloadHabitatConfiguration();
 			}
 			else
 			{
-				perror("changing ph factory address 0x63 failed");
+				perror("changing factory address failed");
 			}
 		}
 		else
@@ -84,19 +96,23 @@ void addNewPHCircuit(int slotPosition)
 }
 
 
-bool changeFactoryAddress(int &slotPosition)
+bool changeFactoryAddress(int slotPosition, int circuitType)
 {
 	bool res = false;
-	phSensor ph;
 	
-	if (ph.checkDeviceModell() == true)
-	{		
-		if (ph.setNewBusAddress(waterSensorAddressSpace[slotPosition] == true))
-		{
-			res = true;
+	if (circuitType == PH)
+	{
+		phSensor ph;
+	
+		if (ph.checkDeviceModell() == true)
+		{		
+			if (ph.setNewBusAddress(startAddress + (slotPosition - 1)) == true)
+			{
+				res = true;
+			}
 		}
-	}			
-
+	}
+	
 	return res;
 }
 
@@ -121,21 +137,55 @@ bool checkIfAddressIsUsed(int busAddress)
 	return res;
 }
 
-void removePHCircuit(int slotPosition)
+void removeCircuit(int slotPosition, int circuitType)
 {	
-	if (checkIfAddressIsUsed(waterSensorAddressSpace[slotPosition]))
+	int defaultAddress = getCircuitDefaultAddress(circuitType);
+	
+	if (!deviceList[slotPosition - 1].empty())
 	{
-		if (!checkIfAddressIsUsed(factoryDefaultPHAddress))
+		if (!checkIfAddressIsUsed(defaultAddress))
 		{
-			phSensor ph;
-			if (ph.setNewBusAddress(factoryDefaultPHAddress) == true)
-			{
-				reloadHabitatConfiguration();
-			}
+			resetCircuit(circuitType, defaultAddress, slotPosition);
 		}
 		else
 		{
-			perror("Can't remove device and reset address, because there is a device with the factory default address. Removing would cause address collision");
+			perror("Can't remove device and reset address, because there is a device with the factory default address present. Removing would cause an address collision");
+		}
+	}
+}
+
+int getCircuitDefaultAddress(int circuitType)
+{
+	int defaultAddress;
+	
+	switch (circuitType)
+	{
+	case PH:
+		defaultAddress = 0x63;
+		break;	
+	case EC:
+		defaultAddress = 0x64;
+		break;
+	case ORP:
+		defaultAddress = 0x65;
+		break;
+	case OXY:
+		defaultAddress = 0x66;
+		break;
+	default:
+		break;
+	}
+	return defaultAddress;
+}
+
+void resetCircuit(int circuitType, int defaultAddress, int slotPosition)
+{
+	if (circuitType == PH)
+	{
+		phSensor ph((0x3 + (slotPosition - 1)), 0);
+		if (ph.setNewBusAddress(defaultAddress) == true)
+		{
+			reloadHabitatConfiguration();
 		}
 	}
 }
@@ -159,4 +209,3 @@ void clearPHObjects(int &deleted)
 	}
 	phSensors.clear();
 }
-

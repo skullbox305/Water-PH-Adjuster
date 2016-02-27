@@ -22,11 +22,11 @@ using namespace std;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool writeI2C(const string &cmd, int device)
 {
-	if (write(device, cmd.c_str(), cmd.size()) != (int)cmd.size()) {
-		perror("I2C write failed.");
-		return false;
+	bool res = false;
+	if (write(device, cmd.c_str(), cmd.size()) == (int)cmd.size()) {
+		res = true;
 	}
-	return true;
+	return res;
 }
 
 

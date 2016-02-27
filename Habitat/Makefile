@@ -35,7 +35,7 @@ error:
 	$(error Invalid configuration, please check your inputs)
 endif
 
-SOURCEFILES := AtlasScientific_i2c_iO.cpp HabitatSettings.cpp main.cpp phAdjuster.cpp phControl.cpp phSensor.cpp databaseOperations.cpp sensorReader.cpp
+SOURCEFILES := AtlasScientific_i2c_iO.cpp globalMtx.cpp HabitatConfiguration.cpp main.cpp phAdjuster.cpp phControl.cpp phSensor.cpp databaseOperations.cpp sensorReader.cpp
 EXTERNAL_LIBS := 
 EXTERNAL_LIBS_COPIED := $(foreach lib, $(EXTERNAL_LIBS),$(BINARYDIR)/$(notdir $(lib)))
 

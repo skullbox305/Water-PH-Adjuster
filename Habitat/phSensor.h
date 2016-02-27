@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <mutex>
 
 class phSensor
 {
@@ -22,26 +23,31 @@ public:
 	bool highpointCalibration(float phVal);
 	bool startSleepmode();
 	std::string getDeviceInfo();
-	bool getSlope(float &acidCalibration, float &baseCalibration);
+	bool getSlope(float &acidCalibration, float &baseCalibration); //fehlerhaft. manchal z.B.90% aber auch 100% möglich
 	bool setNewBusAddress(int newAddr);	
-	void syncSharedMemory();
 	bool checkDeviceModell();
 	
 private:
 	bool calibration(std::string cmd, float phVal);
 	
-	//shared-variable
-	float phValueWrite; ///< The ph value write segment
-	float phValueRead;  ///< The ph value read segment. Mutex getPHValue() for max performance
-	
-	int deviceId;
+	float phValue;
+	int deviceID;
 	int busAddress;
 	int slotPosition;
+	bool disconnected;
+	std::mutex phMtx;
 };
 
 extern std::vector<phSensor*> phSensors; //während programm läuft immer aktiv. Beim beendet gibt OS speicher eh frei. Delete notwendig?
-extern const int factoryDefaultPHAddress;
 
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/// <summary>Initialises the ph module.</summary>
+///
+/// <param name="addr">		   The i2c address</param>
+/// <param name="slotPosition">The slot position in the water sensor array (1-16)</param>
+////////////////////////////////////////////////////////////////////////////////////////////////////
 static void initPhModule(int addr, int slotPosition)
 {	
 	phSensors.push_back(new phSensor(addr, slotPosition));		

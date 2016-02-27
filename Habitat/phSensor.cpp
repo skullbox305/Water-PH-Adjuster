@@ -6,6 +6,7 @@
 
 #include "phSensor.h"
 #include "AtlasScientific_i2c_iO.h"
+#include "globalMtx.h"
 
 #include <iostream>
 #include <unistd.h>
@@ -15,21 +16,19 @@
 using namespace std;
 
 vector<phSensor*> phSensors;
-const int factoryDefaultPHAddress = 0x63;
-
 
 /// <summary>Default constructor.</summary>
 phSensor::phSensor()
 {
-	deviceId = initDevice(factoryDefaultPHAddress);
-	if (deviceId < 0)
+	deviceID = initDevice(0x63);
+	if (deviceID < 0)
 	{
 		throw runtime_error(string("error while opening ph on defaul address 0x63"));
 	}
-	busAddress = factoryDefaultPHAddress;
+	busAddress = 0x63;
 	slotPosition = 0;
+	disconnected = false;
 }
-
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,15 +40,17 @@ phSensor::phSensor()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 phSensor::phSensor(int busAddr, int position)
 {	
-	deviceId = initDevice(busAddr);
-	if (deviceId < 0)
+	deviceID = initDevice(busAddr);
+	if (deviceID < 0)
 	{
 		char buffer[10];
 		sprintf(buffer, "%x", busAddr);
 		throw runtime_error(string("error while opening ph on address 0x" + string(buffer)));
 	}
-	busAddr = factoryDefaultPHAddress;	
+	busAddress = busAddr;	
 	slotPosition = position;
+	phValue = 0;
+	disconnected = false;
 }
 
 
@@ -57,7 +58,6 @@ phSensor::phSensor(int busAddr, int position)
 /// <summary>Destructor.</summary>
 phSensor::~phSensor()
 {
-	cout << "destructed" << endl;
 }
 
 
@@ -88,17 +88,27 @@ bool phSensor::setNewBusAddress(int newAddr)
 	{
 		char buffer[10];
 		sprintf(buffer, "I2c,%d", newAddr);
+		busMtx.lock();
+		res = writeI2C(string(buffer), deviceID);
+		busMtx.unlock();
 	
-		if (writeI2C(string(buffer), deviceId))
+		if (res)
 		{		
 			sleep(3);
 			
-			deviceId = initDevice(newAddr);
-			if (deviceId != -1)
+			busMtx.lock();
+			deviceID = initDevice(newAddr);
+			
+			if (deviceID != -1)
 			{				
 				busAddress = newAddr;
 				res = true;				
 			}
+			else
+			{
+				res = false;
+			}
+			busMtx.unlock();
 		}
 	}	
 	return res;
@@ -112,21 +122,30 @@ bool phSensor::setNewBusAddress(int newAddr)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 float phSensor::getTempCompensation()
 {
-	float tempCompensation;
-	if (writeI2C("T,?", deviceId))
+	float tempCompensation = -1;
+	bool res;
+	
+	busMtx.lock();
+	res = writeI2C("T,?", deviceID);
+	busMtx.unlock();
+	
+	if (res)
 	{
-		usleep(300000); //wait 300 microseconds for response
-
 		string result;
-		if (readI2C(result, deviceId))
-		{
-			
+		usleep(300000); //wait 300 microseconds for response
+		
+		busMtx.lock();
+		res = readI2C(result, deviceID);
+		busMtx.unlock();
+		
+		if (res)
+		{			
 			if (sscanf(result.substr(3).c_str(), "%f", &tempCompensation) != 1) 
 			{
 				cout << "Bad reading: " << result << endl;
 				tempCompensation = -1;
 			}			
-		} 		
+		} 	
 	}
 	return tempCompensation;
 }
@@ -147,15 +166,19 @@ bool phSensor::setTempCompensation(float newTemp)
 	char buffer[10];
 	sprintf(buffer, "T,%f", newTemp);
 	
-	if (writeI2C(string(buffer), deviceId))
+	busMtx.lock();
+	res = writeI2C(string(buffer), deviceID);
+	busMtx.unlock();
+	
+	if (res)
 	{
 		usleep(300000); //wait 300 microseconds for response
 
 		string reading;
-		if (readI2C(reading, deviceId))
-		{
-			res = true;
-		}
+		
+		busMtx.lock();
+		res = readI2C(reading, deviceID);
+		busMtx.unlock();
 	}
 	return res;
 }
@@ -171,12 +194,23 @@ bool phSensor::setTempCompensation(float newTemp)
 int phSensor::getCalibrationStatus()
 {
 	int result = -1;
-	if (writeI2C("Cal,?", deviceId))
+	bool res;
+	
+	busMtx.lock();
+	res = writeI2C("Cal,?", deviceID);
+	busMtx.unlock();
+	
+	if (res)
 	{
 		usleep(300000);
 
 		string reading;
-		if (readI2C(reading, deviceId))
+		
+		busMtx.lock();
+		res = readI2C(reading, deviceID);
+		busMtx.unlock();
+		
+		if (res)
 		{
 			if (isdigit(reading[5]))
 			{
@@ -196,15 +230,19 @@ int phSensor::getCalibrationStatus()
 bool phSensor::clearCalibration()
 {
 	bool res = false;
-	if (writeI2C("Cal,clear", deviceId))
+	
+	busMtx.lock();
+	res = writeI2C("Cal,clear", deviceID);
+	busMtx.unlock();
+	
+	if (res)
 	{
 		usleep(300000); //wait 300ms for response
-
 		string reading;
-		if (readI2C(reading, deviceId))
-		{
-			res = true;
-		}
+		
+		busMtx.lock();
+		res = readI2C(reading, deviceID);
+		busMtx.unlock();
 	}
 	return res;
 }
@@ -224,15 +262,16 @@ bool phSensor::calibration(std::string cmd, float phVal)
 	char buffer[12];
 	sprintf(buffer, "%s,%f", cmd.c_str(), phVal);
 	
-	if (writeI2C(string(buffer), deviceId))
+	res = writeI2C(string(buffer), deviceID);
+	
+	if (res)
 	{
 		usleep(1600000);//wait 1.6 sec for response
-
 		string reading;
-		if (readI2C(reading, deviceId))
-		{
-			res = true;
-		}
+		
+		busMtx.lock();
+		res = readI2C(reading, deviceID);
+		busMtx.unlock();
 	}
 	return res;
 }
@@ -287,21 +326,38 @@ bool phSensor::highpointCalibration(float phVal)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 float phSensor::getNewPHReading()
 {
-	if (writeI2C("R", deviceId))
+	bool res;
+	
+	busMtx.lock();
+	res = writeI2C("R", deviceID);
+	busMtx.unlock();
+	
+	if (res)
 	{
+		disconnected = false;
 		sleep(1); //wait 1 sec for response
-
 		string result;
-		if (readI2C(result, deviceId))
+		
+		busMtx.lock();
+		res = readI2C(result, deviceID);
+		
+		if (res)
 		{
-			if (sscanf(result.c_str(), "%f", &phValueWrite) != 1) 
+			phMtx.lock();
+			if (sscanf(result.c_str(), "%f", &phValue) != 1) 
 			{
-				cout << "Bad reading: " << result << endl;
-				phValueWrite = -1;
+				phValue = -1;
 			}
-		} 		
+			phMtx.unlock();
+		} 	
+		busMtx.unlock();
 	}
-	return phValueWrite;
+	else
+	{
+		disconnected = true;
+		phValue = -1;
+	}
+	return phValue;
 }
 
 
@@ -318,11 +374,15 @@ float phSensor::getNewPHReading()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool phSensor::startSleepmode()
 {
-	bool res = false;
-	if (writeI2C("SLEEP", deviceId))
+	bool res;
+	
+	busMtx.lock();
+	res = writeI2C("SLEEP", deviceID);
+	busMtx.unlock();
+	
+	if (res)
 	{
-		usleep(300000); //wait 300ms for instruction
-		res = true;
+		usleep(300000); //wait 300ms till next instruction can be recieved
 	}
 	return res;
 }
@@ -340,12 +400,21 @@ string phSensor::getDeviceInfo()
 {
 	char buffer[30];
 	string result = "";
+	bool res;
 	
-	if (writeI2C("I", deviceId))
+	busMtx.lock();
+	res = writeI2C("I", deviceID);
+	busMtx.unlock();
+	
+	if (res)
 	{
 		usleep(300000); //wait 300ms for instruction
+		
+		busMtx.lock();
+		res = readI2C(result, deviceID);
+		busMtx.unlock();
 
-		if (readI2C(result, deviceId))
+		if (res)
 		{
 			sprintf(buffer, "%s%s%s%s", "Device: ", result.substr(3, 2).c_str(), "  Firmware: ", result.substr(6, 3).c_str());
 			result = string(buffer);
@@ -373,19 +442,28 @@ string phSensor::getDeviceInfo()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool phSensor::getSlope(float &acidCalibration, float &baseCalibration)
 {
-	bool res = false;
-	if (writeI2C("SLOPE,?", deviceId))
+	bool res;
+	
+	busMtx.lock();
+	res = writeI2C("SLOPE,?", deviceID);
+	busMtx.unlock();
+	
+	if (res)
 	{
 		usleep(300000); //wait 300ms for instruction
-
 		string result;
-		if (readI2C(result, deviceId))
+		
+		busMtx.lock();
+		res = readI2C(result, deviceID);
+		busMtx.unlock();
+		
+		if (res)
 		{
 			string acid = result.substr(7, 4).c_str();
 			string base = result.substr(12, 4).c_str();
-			if (sscanf(acid.c_str(), "%f", &acidCalibration) && sscanf(base.c_str(), "%f", &baseCalibration))
+			if (sscanf(acid.c_str(), "%f", &acidCalibration) && sscanf(base.c_str(), "%f", &baseCalibration) != 1)
 			{
-				res = true;
+				res = false;
 			}			
 		}
 	}
@@ -398,11 +476,17 @@ bool phSensor::getSlope(float &acidCalibration, float &baseCalibration)
 /// 		 Gets the last PH reading gotten by getNewPHReading().
 /// </summary>
 ///
-/// <returns>The ph-value</returns>
+/// <returns>The current ph-value</returns>
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 float phSensor::getPHReading()
 {
-	return phValueRead;
+	float ph;
+
+	phMtx.lock();
+	ph = phValue;
+	phMtx.unlock();
+	
+	return phValue;
 }
 
 
@@ -416,31 +500,28 @@ bool phSensor::checkDeviceModell()
 	bool res = false;
 	char buffer[30];
 	
-	if (writeI2C("I", deviceId))
+	busMtx.lock();
+	res = writeI2C("I", deviceID);
+	busMtx.unlock();
+	
+	if (res)
 	{
 		usleep(300000); //wait 300ms for instruction
-
 		string result;
-		if (readI2C(result, deviceId))
+		
+		busMtx.lock();
+		res = readI2C(result, deviceID);
+		busMtx.unlock();
+		
+		if (res)
 		{
 			sprintf(buffer, "%s", result.substr(3, 2).c_str());
 			result = string(buffer);
-			if (result == "pH")
+			if (result != "pH")
 			{
-				res = true;
+				res = false;
 			}
 		} 		
 	}
 	return res;	
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-/// <summary>
-///		Copies the current ph-value from the write segment of the shared-variable to read segment. 
-/// </summary>
-////////////////////////////////////////////////////////////////////////////////////////////////////
-void phSensor::syncSharedMemory()
-{
-	phValueRead = phValueWrite;
 }

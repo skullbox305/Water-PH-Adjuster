@@ -70,6 +70,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AtlasScientific_i2c_iO.h" />
+    <ClInclude Include="globalMtx.h" />
     <ClInclude Include="HabitatConfiguration.h" />
     <ClInclude Include="phAdjuster.h" />
     <ClInclude Include="phControl.h" />
@@ -80,6 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AtlasScientific_i2c_iO.cpp" />
+    <ClCompile Include="globalMtx.cpp" />
     <ClCompile Include="HabitatConfiguration.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="phAdjuster.cpp" />
