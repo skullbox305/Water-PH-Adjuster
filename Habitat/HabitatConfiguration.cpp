@@ -1,6 +1,11 @@
 #include "HabitatConfiguration.h"
 #include "AtlasScientific_i2c_iO.h"
 #include "phSensor.h"
+#include "phAdjuster.h"
+
+#include <iostream>
+#include <fstream>
+
 #include <string>
 #include <unistd.h>
 #include <stdio.h>
@@ -9,112 +14,89 @@
 
 using namespace std;
 
-const int maxDeviceAmount = 16;
-const int startAddress = 3;
-array<string, maxDeviceAmount> deviceList;
+const int maxSlots = 8;
+array<int, maxSlots> deviceTypeList;
+array<int, maxSlots> deviceObjectIdList;
 int currentDeviceAmount;
 
 void loadHabitatConfiguration()
 {	
-	deviceList.fill("");
+	if (loadDeviceList() == false)
+	{
+		deviceTypeList.fill(0);
+	}
 	currentDeviceAmount = 0;
-	checkAvailModules();
+	createDeviceObjects();
 }
 
 
 void reloadHabitatConfiguration()
 {
-	if (clearSensorObjects() != currentDeviceAmount)
-	{
-		perror("Es wurden nicht alle Objekte geloescht!");
-	}
-	deviceList.fill("");
-	currentDeviceAmount = 0;
-	checkAvailModules();
+
 }
 
-void checkAvailModules()
+void createDeviceObjects()
 {
-	int address = startAddress;
-	for (int slotPosition = 0; slotPosition < maxDeviceAmount; slotPosition++)
+	for (int slotPosition = 1; slotPosition <= deviceTypeList.size(); slotPosition++)
 	{
-		if (checkIfAddressIsUsed(address))
+		//später hier multiplexer schalten
+		int deviceType = deviceTypeList[slotPosition - 1];
+		
+		if (deviceType > 0)
 		{
-			if (isPH(address, slotPosition))
+			int address = getDeviceDefaultAddress(deviceType);
+			if (checkIfAddressIsUsed(address) == true)
 			{
-				deviceList[slotPosition] = "PH";
-				currentDeviceAmount++;
-			}
-			else
-			{
+				switch (deviceType)
+				{
+				case PH:
+					initPhModule(slotPosition);
+					break;	
+				case EC:
 				
+					break;
+				case ORP:
+				
+					break;
+				case OXY:
+				
+					break;
+				case PH_ADJUSTER:
+					initPHAdjuster(slotPosition);
+					break;
+				default:
+					break;
+				}
 			}
-		}
-		address += 0x1;
+		}		
 	}	
 }
 
-bool isPH(int address, int slotPosition)
-{
-	bool res = false;
-	
-	phSensor ph(address,0);
-	if (ph.checkDeviceModell() == true)
-	{
-		initPhModule(address, slotPosition + 1); //start with 1, instead of 0
-		res = true;
-	}
-	return res;
-}
 
-void addNewCircuit(int slotPosition, int circuitType)
+void addNewDevice(int slotPosition, int deviceType)
 {
-	int defaultAddress = getCircuitDefaultAddress(circuitType);
-	
-	if (checkIfAddressIsUsed(defaultAddress))
+	if (checkDeviceType(slotPosition, deviceType) == true)
 	{
-		if (deviceList[slotPosition-1].empty())
-		{
-			if (changeFactoryAddress(slotPosition, circuitType) == true)
-			{
-				reloadHabitatConfiguration();
-			}
-			else
-			{
-				perror("changing factory address failed");
-			}
-		}
-		else
-		{
-			perror("Desired address is already used");
-		}
-	}
-	else
-	{
-		perror("No Device with default address present");
-	}
+		deviceTypeList[slotPosition - 1] = deviceType;
+	}	
+	saveDeviceList();
 }
 
 
-bool changeFactoryAddress(int slotPosition, int circuitType)
-{
-	bool res = false;
-	
-	if (circuitType == PH)
-	{
-		phSensor ph;
-	
-		if (ph.checkDeviceModell() == true)
-		{		
-			if (ph.setNewBusAddress(startAddress + (slotPosition - 1)) == true)
-			{
-				res = true;
-			}
-		}
-	}
-	
-	return res;
+void removeDevice(int slotPosition)
+{	
+	deviceTypeList[slotPosition - 1] = NO_DEVICE;
+	saveDeviceList();
 }
+
+
+bool checkDeviceType(int slotPosition, int deviceType)
+{
+	//hier später multiplexer auf slotPosition schalten
+	int address = getDeviceDefaultAddress(deviceType);
+	return checkIfAddressIsUsed(address);	
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,28 +119,12 @@ bool checkIfAddressIsUsed(int busAddress)
 	return res;
 }
 
-void removeCircuit(int slotPosition, int circuitType)
-{	
-	int defaultAddress = getCircuitDefaultAddress(circuitType);
-	
-	if (!deviceList[slotPosition - 1].empty())
-	{
-		if (!checkIfAddressIsUsed(defaultAddress))
-		{
-			resetCircuit(circuitType, defaultAddress, slotPosition);
-		}
-		else
-		{
-			perror("Can't remove device and reset address, because there is a device with the factory default address present. Removing would cause an address collision");
-		}
-	}
-}
 
-int getCircuitDefaultAddress(int circuitType)
+int getDeviceDefaultAddress(int deviceType)
 {
 	int defaultAddress;
 	
-	switch (circuitType)
+	switch (deviceType)
 	{
 	case PH:
 		defaultAddress = 0x63;
@@ -172,23 +138,15 @@ int getCircuitDefaultAddress(int circuitType)
 	case OXY:
 		defaultAddress = 0x66;
 		break;
+	case PH_ADJUSTER:
+		defaultAddress = 0x60;
+		break;
 	default:
 		break;
 	}
 	return defaultAddress;
 }
 
-void resetCircuit(int circuitType, int defaultAddress, int slotPosition)
-{
-	if (circuitType == PH)
-	{
-		phSensor ph((0x3 + (slotPosition - 1)), 0);
-		if (ph.setNewBusAddress(defaultAddress) == true)
-		{
-			reloadHabitatConfiguration();
-		}
-	}
-}
 
 int clearSensorObjects()
 {
@@ -208,4 +166,38 @@ void clearPHObjects(int &deleted)
 		deleted++;
 	}
 	phSensors.clear();
+}
+
+
+
+void clearPHAdjObects(int &deleted)
+{
+	for (int i = 0; i++; i < phAdjusters.size())
+	{
+		delete phAdjusters[i];
+		deleted++;
+	}
+	phAdjusters.clear();
+}
+
+
+void saveDeviceList()
+{
+	ofstream outFile("deviceTypeList.bin", ios::out | ios::binary);
+	outFile.write((char *) &deviceTypeList, deviceTypeList.size());
+	outFile.close();
+}
+
+
+bool loadDeviceList()
+{
+	bool res = false;
+	ifstream inFile("deviceTypeList.bin", ios::in | ios::binary);
+	if (inFile.good())
+	{
+		inFile.read((char *) &deviceTypeList, deviceTypeList.size());
+		inFile.close();
+		res = true;
+	}
+	return res;
 }

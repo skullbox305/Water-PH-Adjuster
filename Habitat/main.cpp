@@ -23,19 +23,20 @@ void phAdjusterThread()
 int main()
 {	
 	//loadHabitatConfiguration();
-	//addNewCircuit(1, PH);
 	//thread sensorreader(sensorReaderThread);
 	//thread phcontroller(phAdjusterThread);
 	
 	//sensorreader.join();
 	//phcontroller.join();
 	
-	initPHAdjuster(5);
-	phAdjusters[0]->startPump(adjusterOne, phUP , 255);
+	initPHAdjuster(2);
+	phAdjusters[0]->startPump(ADJUSTER_ONE, PH_UP , 260);
 	sleep(1);
- 	phAdjusters[0]->stopPump(adjusterOne, phUP);
-	
-	
+ 	phAdjusters[0]->stopPump(ADJUSTER_ONE, PH_UP);
+
+//	addNewDevice(1, PH);
+//	addNewDevice(2, PH_ADJUSTER);
+//	loadHabitatConfiguration();	
 	
 	
 	

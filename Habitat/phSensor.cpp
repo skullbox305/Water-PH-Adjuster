@@ -17,19 +17,6 @@ using namespace std;
 
 vector<phSensor*> phSensors;
 
-/// <summary>Default constructor.</summary>
-phSensor::phSensor()
-{
-	deviceID = initDevice(0x63);
-	if (deviceID < 0)
-	{
-		throw runtime_error(string("error while opening ph on defaul address 0x63"));
-	}
-	busAddress = 0x63;
-	slotPosition = 0;
-	disconnected = false;
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// <summary>Constructor.</summary>
@@ -38,16 +25,17 @@ phSensor::phSensor()
 ///
 /// <param name="phID">ID of the PH Slot (1 or 2 for the moment)</param>
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-phSensor::phSensor(int busAddr, int position)
+phSensor::phSensor(int position)
 {	
-	deviceID = initDevice(busAddr);
+	busMtx.lock();
+	deviceID = initDevice(0x63);
+	busMtx.unlock();
+	
 	if (deviceID < 0)
 	{
-		char buffer[10];
-		sprintf(buffer, "%x", busAddr);
-		throw runtime_error(string("error while opening ph on address 0x" + string(buffer)));
+		throw runtime_error(string("error while opening ph on default address 0x63"));
 	}
-	busAddress = busAddr;	
+	busAddress = 0x63;	
 	slotPosition = position;
 	phValue = 0;
 	disconnected = false;
@@ -266,12 +254,17 @@ bool phSensor::calibration(std::string cmd, float phVal)
 	
 	if (res)
 	{
+		disconnected = false;
 		usleep(1600000);//wait 1.6 sec for response
 		string reading;
 		
 		busMtx.lock();
 		res = readI2C(reading, deviceID);
 		busMtx.unlock();
+	}
+	else
+	{
+		disconnected = true;
 	}
 	return res;
 }
@@ -382,7 +375,12 @@ bool phSensor::startSleepmode()
 	
 	if (res)
 	{
+		disconnected = false;
 		usleep(300000); //wait 300ms till next instruction can be recieved
+	}
+	else
+	{
+		disconnected = true;
 	}
 	return res;
 }
@@ -416,13 +414,19 @@ string phSensor::getDeviceInfo()
 
 		if (res)
 		{
+			disconnected = false;
 			sprintf(buffer, "%s%s%s%s", "Device: ", result.substr(3, 2).c_str(), "  Firmware: ", result.substr(6, 3).c_str());
 			result = string(buffer);
 		}
 		else
 		{
+			disconnected = true;
 			result = "";
 		}
+	}
+	else
+	{
+		disconnected = true;
 	}
 	return result;
 }
@@ -459,13 +463,23 @@ bool phSensor::getSlope(float &acidCalibration, float &baseCalibration)
 		
 		if (res)
 		{
+
 			string acid = result.substr(7, 4).c_str();
 			string base = result.substr(12, 4).c_str();
 			if (sscanf(acid.c_str(), "%f", &acidCalibration) && sscanf(base.c_str(), "%f", &baseCalibration) != 1)
 			{
+				disconnected = false;
 				res = false;
-			}			
+			}
+			else
+			{
+				disconnected = true;
+			}		
 		}
+	}
+	else
+	{
+		disconnected = false;
 	}
 	return res;	
 }
@@ -519,7 +533,12 @@ bool phSensor::checkDeviceModell()
 			result = string(buffer);
 			if (result != "pH")
 			{
+				disconnected = false;
 				res = false;
+			}
+			else
+			{
+				disconnected = true;
 			}
 		} 		
 	}
