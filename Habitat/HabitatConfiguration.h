@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 
 // Device type IDs
 #define NO_DEVICE 0
@@ -11,6 +12,8 @@
 void loadHabitatConfiguration();
 void reloadHabitatConfiguration();
 void createDeviceObjects();
+int createDeviceObject(int deviceType, int slotPosition);
+void removeDeviceObject(int slotPosition);
 void addNewDevice(int slotPosition, int deviceType);
 bool checkDeviceType(int slotPosition, int deviceType);
 void removeDevice(int slotPosition);
@@ -22,5 +25,8 @@ bool checkIfAddressIsUsed(int busAddress);
 int clearSensorObjects();
 void clearPHObjects(int &deleted);
 void clearPHAdjObects(int &deleted);
+
+const int maxSlots = 8;
+extern std::array<int, maxSlots> deviceObjectIdList;
 
 

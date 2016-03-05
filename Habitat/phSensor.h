@@ -47,8 +47,9 @@ extern std::vector<phSensor*> phSensors; //während programm läuft immer aktiv. B
 /// <param name="addr">		   The i2c address</param>
 /// <param name="slotPosition">The slot position in the water sensor array (1-16)</param>
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-static void initPhModule(int slotPosition)
+static int initPhModule(int slotPosition)
 {	
-	phSensors.push_back(new phSensor(slotPosition));		
+	phSensors.push_back(new phSensor(slotPosition));
+	return (phSensors.size() - 1);
 }
 

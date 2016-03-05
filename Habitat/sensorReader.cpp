@@ -1,6 +1,6 @@
 #include "sensorReader.h"
 #include "phSensor.h"
-#include "databaseOperations.h"
+#include "globalMtx.h"
 
 #include <unistd.h>
 #include <iostream>
@@ -13,7 +13,7 @@ void startSensorReader()
 	while (1)
 	{
 		readPH();
-		sleep(20);
+		sleep(10);
 	}
 }
 
@@ -25,7 +25,10 @@ void readPH()
 		for (int i = 0; i < phSensors.size(); i++)
 		{
 			char buff[50];
+			phReadMtx.lock();
 			snprintf(buff, sizeof(buff), "%.2f", phSensors[i]->getNewPHReading());
+			phReadMtx.unlock();
+			
 			//phSensors[i]->startSleepmode();
 			string phStr = buff;
 			cout << phStr << endl;

@@ -1,5 +1,8 @@
 #include "phAdjuster.h"
+
 #include "sensorReader.h"
+#include "phControl.h"
+
 #include "HabitatConfiguration.h"
 
 #include <thread>
@@ -16,23 +19,25 @@ void sensorReaderThread()
 
 void phAdjusterThread()
 {
-	
+	startPHControl();
 }
 
  
 int main()
 {	
-	//loadHabitatConfiguration();
-	//thread sensorreader(sensorReaderThread);
-	//thread phcontroller(phAdjusterThread);
+	loadHabitatConfiguration();
 	
-	//sensorreader.join();
-	//phcontroller.join();
+//	phAdjusters[0]->setPHDownInitStatus(ADJUSTER_ONE, false);
+//	phAdjusters[0]->setPHUpInitStatus(ADJUSTER_ONE, false);
+		
 	
-	initPHAdjuster(2);
-	phAdjusters[0]->startPump(ADJUSTER_ONE, PH_UP , 260);
-	sleep(1);
- 	phAdjusters[0]->stopPump(ADJUSTER_ONE, PH_UP);
+		
+	thread sensorreader(sensorReaderThread);
+	thread phcontroller(phAdjusterThread);
+
+	sensorreader.join();
+	phcontroller.join();
+	
 
 //	addNewDevice(1, PH);
 //	addNewDevice(2, PH_ADJUSTER);

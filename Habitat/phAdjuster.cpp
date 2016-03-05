@@ -1,10 +1,16 @@
 #include "phAdjuster.h"
 #include "globalMtx.h"
+#include "HabitatConfiguration.h"
+
 
 #include <wiringPiI2C.h>
 #include <cmath>
 #include <unistd.h>
 
+#include <iostream>
+#include <fstream>
+
+using namespace std;
 std::vector<phAdjuster*> phAdjusters;
 
 
@@ -18,11 +24,21 @@ phAdjuster::phAdjuster(int slotPosition)
 		disconnected = true;
 	}
 	initPHAdjuster();
+	for (int i = 0; i < 2; i++)
+	{
+		adjOperating[i] = false;
+		phDownInitStatus[i] = false;
+		phUpInitStatus[i] = false;
+		targetPHVal[i] = 0;
+		adjMode[i] = 0;
+		linkedPHSensorSlot[i] = 0;
+	}	
 }
 
 
 phAdjuster::~phAdjuster()
 {
+	cout << "PH-Adjuster destroyed" << endl;
 }
 
 void phAdjuster::initPHAdjuster()
@@ -30,10 +46,12 @@ void phAdjuster::initPHAdjuster()
 	busMtx.lock();
 	
 	int oldmode = wiringPiI2CReadReg8(deviceID, PCA9685_MODE1);
-	wiringPiI2CWriteReg8(deviceID, PCA9685_MODE1, oldmode | 0xa1); //turn on register auto increment (e.g. write 16 Bits at once instead of twice 8 Bits)
+	wiringPiI2CWriteReg8(deviceID, PCA9685_MODE1, oldmode | 0xa1); //turn on register auto increment (e.g. write 16 Bits at once instead of 8 Bits twice)
 	
 	busMtx.unlock();	
 }
+
+
 
 //void phAdjuster::setPWMFreq()
 //{
@@ -63,28 +81,28 @@ void phAdjuster::getMotor(int adjusterID, int motorID)
 {
 	if (adjusterID == ADJUSTER_ONE)
 	{
-		if (motorID == PH_UP)
+		if (motorID == PH_DOWN)
 		{
 			PWMPin = 8;
 			IN1Pin = 10;
 			IN2Pin = 9;
 		}
-		else if (motorID == PH_DOWN)
+		else if (motorID == PH_UP)
 		{
 			PWMPin = 13;
-			IN1Pin = 11;
-			IN2Pin = 12;
+			IN1Pin = 12;
+			IN2Pin = 11;
 		}
 	}
 	else if (adjusterID == ADJUSTER_TWO)
 	{
-		if (motorID == PH_UP)
+		if (motorID == PH_DOWN)
 		{
 			PWMPin = 2;
 			IN1Pin = 4;
 			IN2Pin = 3;
 		}
-		else if (motorID == PH_DOWN)
+		else if (motorID == PH_UP)
 		{
 			PWMPin = 7;
 			IN1Pin = 5;
@@ -97,7 +115,7 @@ void phAdjuster::getMotor(int adjusterID, int motorID)
 bool phAdjuster::startPump(int adjusterID, int motorID, int speedVal)
 {
 	getMotor(adjusterID, motorID);	
-	setSpeed(speedVal*16);
+	setSpeed(speedVal * 16);
 	
 	//vorwärts (anders rum rückwärts)
 	setPin(IN2Pin, LOW);
@@ -107,6 +125,8 @@ bool phAdjuster::startPump(int adjusterID, int motorID, int speedVal)
 
 bool phAdjuster::stopPump(int adjusterID, int motorID)
 {
+	getMotor(adjusterID, motorID);
+	
 	setPin(IN1Pin, LOW);
 	setPin(IN2Pin, LOW);
 }
@@ -132,6 +152,7 @@ void phAdjuster::setSpeed(int speedVal)
 	}
 }
 
+
 void phAdjuster::setPin(int pin, bool val)
 {
 	if (val == LOW)
@@ -144,3 +165,127 @@ void phAdjuster::setPin(int pin, bool val)
 	}
 }
 
+
+
+void phAdjuster::loadSettingsIfExist()
+{
+	ifstream inFile(getFilepath(), ios::in | ios::binary);
+	if (inFile.good())
+	{
+		int deviceObjectID = deviceObjectIdList[slotPosition - 1];
+		inFile.read((char *) phAdjusters[deviceObjectID], sizeof(phAdjuster));
+		inFile.close();
+	}
+}
+
+
+//simple dump of the object variables(settings) as a binary file. Fine because the object just holds primitiv data types. 
+//Not working, if you add pointer variables, but not needed for now
+void phAdjuster::saveSettings()
+{
+	int deviceObjectID = deviceObjectIdList[slotPosition - 1];
+	
+	ofstream outFile(getFilepath(), ios::out | ios::binary);
+	outFile.write((char *) phAdjusters[deviceObjectID], sizeof(phAdjuster));
+	outFile.close();
+}
+
+
+std::string phAdjuster::getFilepath()
+{
+	char buff[50];
+	snprintf(buff, sizeof(buff), "device_settings/slot_%d_settings.bin", slotPosition);
+	string path = buff;
+	
+	return path;
+}
+
+
+void phAdjuster::setOperatingStatus(int adjusterID, bool active)
+{
+	adjOperating[adjusterID - 1] = active;
+	saveSettings();
+}
+
+
+bool phAdjuster::getOperatingStatus(int adjusterID)
+{
+	return adjOperating[adjusterID - 1];
+}
+
+
+void phAdjuster::setTargetPHVal(float phVal, int adjusterID)
+{
+	targetPHVal[adjusterID - 1] = phVal;
+	saveSettings();
+}
+
+
+float phAdjuster::getTargetPHVal(int adjusterID)
+{
+	return targetPHVal[adjusterID - 1];
+}
+
+
+void phAdjuster::assignToPHSlot(int slotPosition, int adjusterID)
+{
+	linkedPHSensorSlot[adjusterID - 1] = slotPosition;
+	saveSettings();
+}
+
+
+int phAdjuster::getAssignedPHSlot(int adjusterID)
+{
+	return linkedPHSensorSlot[adjusterID - 1];
+}
+
+
+void phAdjuster::setMode(int adjusterID, int mode)
+{
+	adjMode[adjusterID - 1] = mode;
+	saveSettings();
+}
+
+
+int phAdjuster::getMode(int adjusterID)
+{
+	return adjMode[adjusterID - 1];
+}
+
+
+bool phAdjuster::checkConnection()
+{
+	return disconnected;
+}
+
+
+int phAdjuster::getSlotPosition()
+{
+	return slotPosition;
+}
+
+
+bool phAdjuster::getPHDownInitStatus(int adjusterID)
+{
+	return phDownInitStatus[adjusterID - 1];
+}
+
+
+bool phAdjuster::getPHUpInitStatus(int adjusterID)
+{
+	return phUpInitStatus[adjusterID - 1];
+}
+
+
+void phAdjuster::setPHDownInitStatus(int adjusterID, bool status)
+{
+	phDownInitStatus[adjusterID - 1] = status;
+	saveSettings();
+}
+
+
+void phAdjuster::setPHUpInitStatus(int adjusterID, bool status)
+{
+	phUpInitStatus[adjusterID - 1] = status;
+	saveSettings();
+}

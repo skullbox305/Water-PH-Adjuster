@@ -1,14 +1,15 @@
 #pragma once
 
 #include <vector>
-
-//Motor ID
-#define PH_UP 1
-#define PH_DOWN 2
+#include <string>
 
 //Adjuster ID
 #define ADJUSTER_ONE 1
 #define ADJUSTER_TWO 2
+
+//Motor ID
+#define PH_DOWN 1
+#define PH_UP 2
 
 //Adjuster Mode
 #define FIXED 1
@@ -33,39 +34,52 @@ public:
 	bool getOperatingStatus(int adjusterID);
 	void setTargetPHVal(float phVal, int adjusterID);
 	float getTargetPHVal(int adjusterID);
-	void assignPHSlot(int slotPosition, int adjusterID);
+	void assignToPHSlot(int slotPosition, int adjusterID);
 	int getAssignedPHSlot(int adjusterID);
+	void setMode(int adjusterID, int mode);
+	int getMode(int adjusterID);
+	bool checkConnection();
+	int getSlotPosition();
+	bool getPHDownInitStatus(int adjusterID);
+	void setPHDownInitStatus(int adjusterID, bool status);
+	bool getPHUpInitStatus(int adjusterID);
+	void setPHUpInitStatus(int adjusterID, bool status);
 	
 	bool startPump(int adjusterID, int motorID, int speedVal);
 	bool stopPump(int adjusterID, int motorID);
-	
-	void loadPreviousConfig();
+
+	void loadSettingsIfExist();
+	void saveSettings();
 	
 private:
-	void getPhObjectID();
 	void setPWM(int pin, int on, int off);
 	void setSpeed(int speedVal);
 	void setPin(int pin, bool val);
 	void getMotor(int adjusterID, int motorID);
 	void setPWMFreq();	
+	std::string getFilepath();
 	
 	int PWMPin;
 	int IN1Pin;
 	int IN2Pin;
 	int deviceID;
-	int phObjVectorID[2];
 	
-	bool adjActive[2];
+	bool adjOperating[2];
+	bool phDownInitStatus[2];
+	bool phUpInitStatus[2];
 	int adjMode[2];
 	float targetPHVal[2];
 	int linkedPHSensorSlot[2];
 	int slotPosition;
+	
 	bool disconnected;
 };
 
 extern std::vector<phAdjuster*> phAdjusters;
 
-static void initPHAdjuster(int slotPosition)
+static int initPHAdjuster(int slotPosition)
 {	
 	phAdjusters.push_back(new phAdjuster(slotPosition));
+	phAdjusters[phAdjusters.size() - 1]->loadSettingsIfExist();
+	return (phAdjusters.size() - 1);
 }

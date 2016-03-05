@@ -9,12 +9,10 @@
 #include <string>
 #include <unistd.h>
 #include <stdio.h>
-#include <array>
 #include <mutex>
 
 using namespace std;
 
-const int maxSlots = 8;
 array<int, maxSlots> deviceTypeList;
 array<int, maxSlots> deviceObjectIdList;
 int currentDeviceAmount;
@@ -47,30 +45,44 @@ void createDeviceObjects()
 			int address = getDeviceDefaultAddress(deviceType);
 			if (checkIfAddressIsUsed(address) == true)
 			{
-				switch (deviceType)
-				{
-				case PH:
-					initPhModule(slotPosition);
-					break;	
-				case EC:
-				
-					break;
-				case ORP:
-				
-					break;
-				case OXY:
-				
-					break;
-				case PH_ADJUSTER:
-					initPHAdjuster(slotPosition);
-					break;
-				default:
-					break;
-				}
+				deviceObjectIdList[slotPosition - 1] = createDeviceObject(deviceType, slotPosition);
 			}
-		}		
+		}
+		else
+		{
+			deviceObjectIdList[slotPosition - 1] = -1;
+		}
 	}	
 }
+
+
+int createDeviceObject(int deviceType, int slotPosition)
+{
+	int objectID;
+	
+	switch (deviceType)
+	{
+	case PH:
+		objectID = initPhModule(slotPosition);
+		break;	
+	case EC:
+				
+		break;
+	case ORP:
+				
+		break;
+	case OXY:
+				
+		break;
+	case PH_ADJUSTER:
+		objectID = initPHAdjuster(slotPosition);
+		break;
+	default:
+		break;
+	}	
+	return objectID;
+}
+
 
 
 void addNewDevice(int slotPosition, int deviceType)
@@ -78,16 +90,54 @@ void addNewDevice(int slotPosition, int deviceType)
 	if (checkDeviceType(slotPosition, deviceType) == true)
 	{
 		deviceTypeList[slotPosition - 1] = deviceType;
+		deviceObjectIdList[slotPosition - 1] = createDeviceObject(deviceType, slotPosition);
+		saveDeviceList();
 	}	
-	saveDeviceList();
 }
 
 
 void removeDevice(int slotPosition)
 {	
+	removeDeviceObject(slotPosition);
 	deviceTypeList[slotPosition - 1] = NO_DEVICE;
+	deviceObjectIdList[slotPosition - 1] = -1;
+	
+	char path[100];
+	snprintf(path, sizeof(path), "device_settings/slot_%d_settings.bin", slotPosition);
+	remove(path);
+	
 	saveDeviceList();
 }
+
+void removeDeviceObject(int slotPosition)
+{
+	int deviceType = deviceTypeList[slotPosition - 1];
+	int objectID = deviceObjectIdList[slotPosition - 1];
+	
+	switch (deviceType)
+	{
+	case PH:
+		delete phSensors[objectID];
+		phSensors.erase(phSensors.begin() + objectID);
+		break;	
+	case EC:
+				
+		break;
+	case ORP:
+				
+		break;
+	case OXY:
+				
+		break;
+	case PH_ADJUSTER:
+		delete &phAdjusters[objectID];
+		phAdjusters.erase(phAdjusters.begin() + objectID);
+		break;
+	default:
+		break;
+	}	
+}
+
 
 
 bool checkDeviceType(int slotPosition, int deviceType)
@@ -183,7 +233,7 @@ void clearPHAdjObects(int &deleted)
 
 void saveDeviceList()
 {
-	ofstream outFile("deviceTypeList.bin", ios::out | ios::binary);
+	ofstream outFile("device_settings/deviceTypeList.bin", ios::out | ios::binary);
 	outFile.write((char *) &deviceTypeList, deviceTypeList.size());
 	outFile.close();
 }
@@ -192,7 +242,7 @@ void saveDeviceList()
 bool loadDeviceList()
 {
 	bool res = false;
-	ifstream inFile("deviceTypeList.bin", ios::in | ios::binary);
+	ifstream inFile("device_settings/deviceTypeList.bin", ios::in | ios::binary);
 	if (inFile.good())
 	{
 		inFile.read((char *) &deviceTypeList, deviceTypeList.size());
