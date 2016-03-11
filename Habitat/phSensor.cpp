@@ -5,13 +5,16 @@
  */
 
 #include "phSensor.h"
-#include "AtlasScientific_i2c_iO.h"
+#include "i2c_iO.h"
 #include "globalMtx.h"
 
 #include <iostream>
 #include <unistd.h>
 #include <string>
 #include <stdexcept>
+#include <wiringPiI2C.h>
+
+#define DEFAULT_ADDR 0x63
 
 using namespace std;
 
@@ -28,17 +31,18 @@ vector<phSensor*> phSensors;
 phSensor::phSensor(int position)
 {	
 	busMtx.lock();
-	deviceID = initDevice(0x63);
+	slotPosition = position;
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
 	busMtx.unlock();
 	
 	if (deviceID < 0)
 	{
 		throw runtime_error(string("error while opening ph on default address 0x63"));
 	}
-	busAddress = 0x63;	
-	slotPosition = position;
+	busAddress = DEFAULT_ADDR;	
 	phValue = 0;
 	disconnected = false;
+	running = true;
 }
 
 
@@ -76,16 +80,16 @@ bool phSensor::setNewBusAddress(int newAddr)
 	{
 		char buffer[10];
 		sprintf(buffer, "I2c,%d", newAddr);
+		
 		busMtx.lock();
-		res = writeI2C(string(buffer), deviceID);
-		busMtx.unlock();
+		deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+		res = writeI2CAtlasScientific(string(buffer), deviceID);
 	
 		if (res)
 		{		
 			sleep(3);
 			
-			busMtx.lock();
-			deviceID = initDevice(newAddr);
+			deviceID = wiringPiI2CSetup(newAddr);
 			
 			if (deviceID != -1)
 			{				
@@ -96,9 +100,9 @@ bool phSensor::setNewBusAddress(int newAddr)
 			{
 				res = false;
 			}
-			busMtx.unlock();
 		}
 	}	
+	busMtx.unlock();
 	return res;
 }
 
@@ -114,16 +118,15 @@ float phSensor::getTempCompensation()
 	bool res;
 	
 	busMtx.lock();
-	res = writeI2C("T,?", deviceID);
-	busMtx.unlock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific("T,?", deviceID);
 	
 	if (res)
 	{
 		string result;
 		usleep(300000); //wait 300 microseconds for response
 		
-		busMtx.lock();
-		res = readI2C(result, deviceID);
+		res = readI2CAtlasScientific(result, deviceID);
 		busMtx.unlock();
 		
 		if (res)
@@ -155,8 +158,8 @@ bool phSensor::setTempCompensation(float newTemp)
 	sprintf(buffer, "T,%f", newTemp);
 	
 	busMtx.lock();
-	res = writeI2C(string(buffer), deviceID);
-	busMtx.unlock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific(string(buffer), deviceID);
 	
 	if (res)
 	{
@@ -164,10 +167,9 @@ bool phSensor::setTempCompensation(float newTemp)
 
 		string reading;
 		
-		busMtx.lock();
-		res = readI2C(reading, deviceID);
-		busMtx.unlock();
+		res = readI2CAtlasScientific(reading, deviceID);
 	}
+	busMtx.unlock();
 	return res;
 }
 
@@ -185,8 +187,8 @@ int phSensor::getCalibrationStatus()
 	bool res;
 	
 	busMtx.lock();
-	res = writeI2C("Cal,?", deviceID);
-	busMtx.unlock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific("Cal,?", deviceID);
 	
 	if (res)
 	{
@@ -194,9 +196,7 @@ int phSensor::getCalibrationStatus()
 
 		string reading;
 		
-		busMtx.lock();
-		res = readI2C(reading, deviceID);
-		busMtx.unlock();
+		res = readI2CAtlasScientific(reading, deviceID);
 		
 		if (res)
 		{
@@ -206,6 +206,7 @@ int phSensor::getCalibrationStatus()
 			}
 		}
 	}
+	busMtx.unlock();
 	return result;
 }
 
@@ -220,18 +221,17 @@ bool phSensor::clearCalibration()
 	bool res = false;
 	
 	busMtx.lock();
-	res = writeI2C("Cal,clear", deviceID);
-	busMtx.unlock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific("Cal,clear", deviceID);
 	
 	if (res)
 	{
 		usleep(300000); //wait 300ms for response
 		string reading;
 		
-		busMtx.lock();
-		res = readI2C(reading, deviceID);
-		busMtx.unlock();
+		res = readI2CAtlasScientific(reading, deviceID);
 	}
+	busMtx.unlock();
 	return res;
 }
 
@@ -250,7 +250,9 @@ bool phSensor::calibration(std::string cmd, float phVal)
 	char buffer[12];
 	sprintf(buffer, "%s,%f", cmd.c_str(), phVal);
 	
-	res = writeI2C(string(buffer), deviceID);
+	busMtx.lock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific(string(buffer), deviceID);
 	
 	if (res)
 	{
@@ -258,14 +260,13 @@ bool phSensor::calibration(std::string cmd, float phVal)
 		usleep(1600000);//wait 1.6 sec for response
 		string reading;
 		
-		busMtx.lock();
-		res = readI2C(reading, deviceID);
-		busMtx.unlock();
+		res = readI2CAtlasScientific(reading, deviceID);
 	}
 	else
 	{
 		disconnected = true;
 	}
+	busMtx.unlock();
 	return res;
 }
 
@@ -319,11 +320,12 @@ bool phSensor::highpointCalibration(float phVal)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 float phSensor::getNewPHReading()
 {
+	busMtx.lock();
+	
 	bool res;
 	
-	busMtx.lock();
-	res = writeI2C("R", deviceID);
-	busMtx.unlock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific("R", deviceID);
 	
 	if (res)
 	{
@@ -331,25 +333,27 @@ float phSensor::getNewPHReading()
 		sleep(1); //wait 1 sec for response
 		string result;
 		
-		busMtx.lock();
-		res = readI2C(result, deviceID);
+		res = readI2CAtlasScientific(result, deviceID);
 		
 		if (res)
 		{
-			phMtx.lock();
 			if (sscanf(result.c_str(), "%f", &phValue) != 1) 
 			{
 				phValue = -1;
 			}
-			phMtx.unlock();
-		} 	
-		busMtx.unlock();
+		}
+		else
+		{
+			disconnected = true;
+		}
 	}
 	else
 	{
 		disconnected = true;
 		phValue = -1;
 	}
+	busMtx.unlock();
+	
 	return phValue;
 }
 
@@ -370,8 +374,8 @@ bool phSensor::startSleepmode()
 	bool res;
 	
 	busMtx.lock();
-	res = writeI2C("SLEEP", deviceID);
-	busMtx.unlock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific("SLEEP", deviceID);
 	
 	if (res)
 	{
@@ -382,6 +386,7 @@ bool phSensor::startSleepmode()
 	{
 		disconnected = true;
 	}
+	busMtx.unlock();
 	return res;
 }
 
@@ -401,16 +406,14 @@ string phSensor::getDeviceInfo()
 	bool res;
 	
 	busMtx.lock();
-	res = writeI2C("I", deviceID);
-	busMtx.unlock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific("I", deviceID);
 	
 	if (res)
 	{
 		usleep(300000); //wait 300ms for instruction
 		
-		busMtx.lock();
-		res = readI2C(result, deviceID);
-		busMtx.unlock();
+		res = readI2CAtlasScientific(result, deviceID);
 
 		if (res)
 		{
@@ -428,6 +431,7 @@ string phSensor::getDeviceInfo()
 	{
 		disconnected = true;
 	}
+	busMtx.unlock();
 	return result;
 }
 
@@ -449,21 +453,18 @@ bool phSensor::getSlope(float &acidCalibration, float &baseCalibration)
 	bool res;
 	
 	busMtx.lock();
-	res = writeI2C("SLOPE,?", deviceID);
-	busMtx.unlock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific("SLOPE,?", deviceID);
 	
 	if (res)
 	{
 		usleep(300000); //wait 300ms for instruction
 		string result;
 		
-		busMtx.lock();
-		res = readI2C(result, deviceID);
-		busMtx.unlock();
+		res = readI2CAtlasScientific(result, deviceID);
 		
 		if (res)
 		{
-
 			string acid = result.substr(7, 4).c_str();
 			string base = result.substr(12, 4).c_str();
 			if (sscanf(acid.c_str(), "%f", &acidCalibration) && sscanf(base.c_str(), "%f", &baseCalibration) != 1)
@@ -481,6 +482,8 @@ bool phSensor::getSlope(float &acidCalibration, float &baseCalibration)
 	{
 		disconnected = false;
 	}
+	busMtx.unlock();
+	
 	return res;	
 }
 
@@ -496,9 +499,9 @@ float phSensor::getPHReading()
 {
 	float ph;
 
-	phMtx.lock();
+	busMtx.lock();
 	ph = phValue;
-	phMtx.unlock();
+	busMtx.unlock();
 	
 	return phValue;
 }
@@ -515,17 +518,15 @@ bool phSensor::checkDeviceModell()
 	char buffer[30];
 	
 	busMtx.lock();
-	res = writeI2C("I", deviceID);
-	busMtx.unlock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
+	res = writeI2CAtlasScientific("I", deviceID);
 	
 	if (res)
 	{
 		usleep(300000); //wait 300ms for instruction
 		string result;
 		
-		busMtx.lock();
-		res = readI2C(result, deviceID);
-		busMtx.unlock();
+		res = readI2CAtlasScientific(result, deviceID);
 		
 		if (res)
 		{
@@ -542,5 +543,31 @@ bool phSensor::checkDeviceModell()
 			}
 		} 		
 	}
+	busMtx.unlock();
+	
 	return res;	
+}
+
+
+bool phSensor::isDisconnected()
+{
+	return disconnected;
+}
+
+
+bool phSensor::isOperating()
+{
+	return running;
+}
+
+
+void phSensor::setOperatingStatus(bool running)
+{
+	this->running = running;
+}
+
+
+int phSensor::getSlotPosition()
+{
+	return slotPosition;
 }

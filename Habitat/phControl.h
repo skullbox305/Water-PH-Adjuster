@@ -2,7 +2,10 @@
 
 void startPHControl();
 void adjustPH();
-void fillTubesIfNot(int phAdjObjectID);
-void fillTubes(int phAdjObjectID, int adjusterID);
-void initPHDown(int phAdjObjectID, int adjusterID);
-void initPHUp(int phAdjObjectID, int adjusterID);
+void adjustPHOne(int phAdjObjectID);
+void adjustPHTwo(int phAdjObjectID);
+
+void adjustPHDown(int phAdjObjectID, int adjusterID);
+void adjustPHUp(int phAdjObjectID, int adjusterID);
+
+void getCurrentTargetPH(int phAdjObjectID, int adjusterID);

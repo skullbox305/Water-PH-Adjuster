@@ -1,16 +1,20 @@
 #include "phAdjuster.h"
 #include "globalMtx.h"
+#include "i2c_iO.h"
 #include "HabitatConfiguration.h"
 
 
 #include <wiringPiI2C.h>
 #include <cmath>
 #include <unistd.h>
-
+#include <time.h>
 #include <iostream>
 #include <fstream>
 
+#define DEFAULT_ADDR 0x60
+
 using namespace std;
+
 std::vector<phAdjuster*> phAdjusters;
 
 
@@ -18,32 +22,40 @@ phAdjuster::phAdjuster(int slotPosition)
 {
 	this->slotPosition = slotPosition;
 	disconnected = false;
-	deviceID = wiringPiI2CSetup(0x60);
+	
+	busMtx.lock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);	
+	
 	if (wiringPiI2CWriteReg8(deviceID, PCA9685_MODE1, 0x0) == -1)
 	{
 		disconnected = true;
 	}
+	busMtx.unlock();
+	
 	initPHAdjuster();
+	stopPump(ADJUSTER_ONE, PH_UP);
+	stopPump(ADJUSTER_ONE, PH_DOWN);
+	stopPump(ADJUSTER_TWO, PH_UP);
+	stopPump(ADJUSTER_TWO, PH_DOWN);
+	
 	for (int i = 0; i < 2; i++)
 	{
 		adjOperating[i] = false;
-		phDownInitStatus[i] = false;
-		phUpInitStatus[i] = false;
 		targetPHVal[i] = 0;
 		adjMode[i] = 0;
-		linkedPHSensorSlot[i] = 0;
+		linkedPHSensorSlot[i] = -1;
 	}	
 }
 
 
 phAdjuster::~phAdjuster()
 {
-	cout << "PH-Adjuster destroyed" << endl;
 }
 
 void phAdjuster::initPHAdjuster()
 {
 	busMtx.lock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
 	
 	int oldmode = wiringPiI2CReadReg8(deviceID, PCA9685_MODE1);
 	wiringPiI2CWriteReg8(deviceID, PCA9685_MODE1, oldmode | 0xa1); //turn on register auto increment (e.g. write 16 Bits at once instead of 8 Bits twice)
@@ -135,6 +147,7 @@ bool phAdjuster::stopPump(int adjusterID, int motorID)
 void phAdjuster::setPWM(int pin, int on, int off)
 {	
 	busMtx.lock();
+	deviceID = switchToSlot(slotPosition, DEFAULT_ADDR);
 	wiringPiI2CWriteReg16(deviceID, LED0_ON + 4*pin, on);	
 	wiringPiI2CWriteReg16(deviceID, LED0_OFF + 4*pin, off);
 	busMtx.unlock();
@@ -167,12 +180,11 @@ void phAdjuster::setPin(int pin, bool val)
 
 
 
-void phAdjuster::loadSettingsIfExist()
+void phAdjuster::loadSettingsIfExist(int deviceObjectID)
 {
 	ifstream inFile(getFilepath(), ios::in | ios::binary);
 	if (inFile.good())
 	{
-		int deviceObjectID = deviceObjectIdList[slotPosition - 1];
 		inFile.read((char *) phAdjusters[deviceObjectID], sizeof(phAdjuster));
 		inFile.close();
 	}
@@ -241,7 +253,17 @@ int phAdjuster::getAssignedPHSlot(int adjusterID)
 
 
 void phAdjuster::setMode(int adjusterID, int mode)
-{
+{	
+	if (mode == INTERVAL)
+	{
+		dateTillNextTick = time(NULL);
+		struct tm *date = localtime(&dateTillNextTick);
+		date->tm_mday += 1;
+		date->tm_isdst = -1;
+		dateTillNextTick = mktime(date);
+		targetPHVal[adjusterID] = upperPHLimit[adjusterID];
+		increaseFlag[adjusterID] = false;
+	}
 	adjMode[adjusterID - 1] = mode;
 	saveSettings();
 }
@@ -264,28 +286,49 @@ int phAdjuster::getSlotPosition()
 	return slotPosition;
 }
 
-
-bool phAdjuster::getPHDownInitStatus(int adjusterID)
+float phAdjuster::getLowerPHLimit(int adjusterID)
 {
-	return phDownInitStatus[adjusterID - 1];
+	return lowerPHLimit[adjusterID];
+}
+
+void phAdjuster::setLowerPHLimit(int adjusterID, float phVal)
+{
+	lowerPHLimit[adjusterID] = phVal;
 }
 
 
-bool phAdjuster::getPHUpInitStatus(int adjusterID)
+float phAdjuster::getUpperPHLimit(int adjusterID)
 {
-	return phUpInitStatus[adjusterID - 1];
+	return upperPHLimit[adjusterID];
 }
 
 
-void phAdjuster::setPHDownInitStatus(int adjusterID, bool status)
+void phAdjuster::setUpperPHLimit(int adjusterID, float phVal)
 {
-	phDownInitStatus[adjusterID - 1] = status;
-	saveSettings();
+	upperPHLimit[adjusterID] = phVal;
 }
 
 
-void phAdjuster::setPHUpInitStatus(int adjusterID, bool status)
+bool phAdjuster::getIncreaseFlag(int adjusterID)
 {
-	phUpInitStatus[adjusterID - 1] = status;
-	saveSettings();
+	return increaseFlag[adjusterID];
 }
+
+
+void phAdjuster::setIncreaseFlag(int adjusterID, bool increase)
+{
+	increaseFlag[adjusterID] = increase;
+}
+
+
+time_t phAdjuster::getDateForNextTick()
+{
+	return dateTillNextTick;	
+}
+
+
+void phAdjuster::setDateForNextTick(time_t nextDate)
+{
+	dateTillNextTick = nextDate;
+}
+

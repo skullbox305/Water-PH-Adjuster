@@ -10,7 +10,6 @@
 #define PH_ADJUSTER 5
 
 void loadHabitatConfiguration();
-void reloadHabitatConfiguration();
 void createDeviceObjects();
 int createDeviceObject(int deviceType, int slotPosition);
 void removeDeviceObject(int slotPosition);
@@ -21,10 +20,6 @@ void saveDeviceList();
 bool loadDeviceList();
 int getDeviceDefaultAddress(int deviceType);
 bool checkIfAddressIsUsed(int busAddress);
-
-int clearSensorObjects();
-void clearPHObjects(int &deleted);
-void clearPHAdjObects(int &deleted);
 
 const int maxSlots = 8;
 extern std::array<int, maxSlots> deviceObjectIdList;

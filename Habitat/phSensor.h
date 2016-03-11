@@ -13,6 +13,7 @@ public:
 	float getNewPHReading();
 	float getPHReading();
 	int getBusAddress();
+	int getSlotPosition();
 	float getTempCompensation();
 	bool setTempCompensation(float newTemp);
 	int getCalibrationStatus();
@@ -25,6 +26,9 @@ public:
 	bool getSlope(float &acidCalibration, float &baseCalibration); //fehlerhaft. manchal z.B.90% aber auch 100% möglich
 	bool setNewBusAddress(int newAddr);	
 	bool checkDeviceModell();
+	bool isDisconnected();
+	bool isOperating();
+	void setOperatingStatus(bool running);
 	
 private:
 	bool calibration(std::string cmd, float phVal);
@@ -33,6 +37,7 @@ private:
 	int deviceID;
 	int busAddress;
 	int slotPosition;
+	bool running;
 	bool disconnected;
 	std::mutex phMtx;
 };

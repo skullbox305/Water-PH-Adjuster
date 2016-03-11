@@ -4,11 +4,9 @@
 #include "phControl.h"
 
 #include "HabitatConfiguration.h"
+#include "wiringPiI2C.h"
 
 #include <thread>
-#include <vector>
-#include <wiringPiI2C.h>
-#include <unistd.h>
 
 using namespace std;
 
@@ -25,41 +23,23 @@ void phAdjusterThread()
  
 int main()
 {	
+
 	loadHabitatConfiguration();
-	
-//	phAdjusters[0]->setPHDownInitStatus(ADJUSTER_ONE, false);
-//	phAdjusters[0]->setPHUpInitStatus(ADJUSTER_ONE, false);
+	//removeDevice(5);
+	addNewDevice(1, PH);
+//	addNewDevice(2, PH_ADJUSTER);
 		
-	
+	phSensors[0]->setOperatingStatus(true);
+	phSensors[0]->setTempCompensation(20.0);
+	phAdjusters[0]->assignToPHSlot(1, ADJUSTER_ONE);
+	phAdjusters[0]->setOperatingStatus(ADJUSTER_ONE, true);
+	phAdjusters[0]->setTargetPHVal(6.0, ADJUSTER_ONE);
 		
 	thread sensorreader(sensorReaderThread);
 	thread phcontroller(phAdjusterThread);
 
 	sensorreader.join();
 	phcontroller.join();
-	
 
-//	addNewDevice(1, PH);
-//	addNewDevice(2, PH_ADJUSTER);
-//	loadHabitatConfiguration();	
-	
-	
-	
-	
-	//vector<float> avg;
-	//phSensor ph(0x3, 0);
-	//cout << ph.lowpointCalibration(3.04) << endl;
-	//
-	//for (int i = 0; i < 20; i++)
-	//{
-		//avg.push_back(ph.getNewPHReading());
-	//}
-	//float sum = 0;
-	//for (float i : avg)
-	//{
-		//sum += i;
-	//}
-	//
-	//cout << sum / avg.size() << endl;
 	return 0;	
 }

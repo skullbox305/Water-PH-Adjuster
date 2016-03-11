@@ -1,7 +1,8 @@
 #include "HabitatConfiguration.h"
-#include "AtlasScientific_i2c_iO.h"
+#include "i2c_iO.h"
 #include "phSensor.h"
 #include "phAdjuster.h"
+#include "globalMtx.h"
 
 #include <iostream>
 #include <fstream>
@@ -9,7 +10,6 @@
 #include <string>
 #include <unistd.h>
 #include <stdio.h>
-#include <mutex>
 
 using namespace std;
 
@@ -22,22 +22,18 @@ void loadHabitatConfiguration()
 	if (loadDeviceList() == false)
 	{
 		deviceTypeList.fill(0);
+		system("mkdir -p device_settings"); //testen
 	}
 	currentDeviceAmount = 0;
 	createDeviceObjects();
 }
 
 
-void reloadHabitatConfiguration()
-{
-
-}
-
 void createDeviceObjects()
 {
 	for (int slotPosition = 1; slotPosition <= deviceTypeList.size(); slotPosition++)
 	{
-		//später hier multiplexer schalten
+		switchToSlot(slotPosition, 0);
 		int deviceType = deviceTypeList[slotPosition - 1];
 		
 		if (deviceType > 0)
@@ -46,6 +42,10 @@ void createDeviceObjects()
 			if (checkIfAddressIsUsed(address) == true)
 			{
 				deviceObjectIdList[slotPosition - 1] = createDeviceObject(deviceType, slotPosition);
+			}
+			else
+			{
+				deviceObjectIdList[slotPosition - 1] = -1;
 			}
 		}
 		else
@@ -98,9 +98,12 @@ void addNewDevice(int slotPosition, int deviceType)
 
 void removeDevice(int slotPosition)
 {	
-	removeDeviceObject(slotPosition);
+	if (deviceObjectIdList[slotPosition - 1] != -1)
+	{
+		removeDeviceObject(slotPosition);
+		deviceObjectIdList[slotPosition - 1] = -1;
+	}
 	deviceTypeList[slotPosition - 1] = NO_DEVICE;
-	deviceObjectIdList[slotPosition - 1] = -1;
 	
 	char path[100];
 	snprintf(path, sizeof(path), "device_settings/slot_%d_settings.bin", slotPosition);
@@ -142,9 +145,13 @@ void removeDeviceObject(int slotPosition)
 
 bool checkDeviceType(int slotPosition, int deviceType)
 {
-	//hier später multiplexer auf slotPosition schalten
+	busMtx.lock();
 	int address = getDeviceDefaultAddress(deviceType);
-	return checkIfAddressIsUsed(address);	
+	switchToSlot(slotPosition, address);
+	bool res = checkIfAddressIsUsed(address);
+	busMtx.unlock();
+	
+	return res;
 }
 
 
@@ -159,7 +166,7 @@ bool checkDeviceType(int slotPosition, int deviceType)
 bool checkIfAddressIsUsed(int busAddress)
 {
 	bool res = false;
-	int device = initDevice(busAddress);
+	int device = wiringPiI2CSetup(busAddress);
 	std::string request = "";
 
 	if (write(device, request.c_str(), 1) == 1)
@@ -198,43 +205,10 @@ int getDeviceDefaultAddress(int deviceType)
 }
 
 
-int clearSensorObjects()
-{
-	int deletedObjects = 0;
-	
-	clearPHObjects(deletedObjects);
-	
-	return deletedObjects;
-}
-
-
-void clearPHObjects(int &deleted)
-{
-	for (int i = 0; i++; i < phSensors.size())
-	{
-		delete phSensors[i];
-		deleted++;
-	}
-	phSensors.clear();
-}
-
-
-
-void clearPHAdjObects(int &deleted)
-{
-	for (int i = 0; i++; i < phAdjusters.size())
-	{
-		delete phAdjusters[i];
-		deleted++;
-	}
-	phAdjusters.clear();
-}
-
-
 void saveDeviceList()
 {
 	ofstream outFile("device_settings/deviceTypeList.bin", ios::out | ios::binary);
-	outFile.write((char *) &deviceTypeList, deviceTypeList.size());
+	outFile.write((char *) &deviceTypeList, sizeof(deviceTypeList));
 	outFile.close();
 }
 
@@ -245,7 +219,7 @@ bool loadDeviceList()
 	ifstream inFile("device_settings/deviceTypeList.bin", ios::in | ios::binary);
 	if (inFile.good())
 	{
-		inFile.read((char *) &deviceTypeList, deviceTypeList.size());
+		inFile.read((char *) &deviceTypeList, sizeof(deviceTypeList));
 		inFile.close();
 		res = true;
 	}

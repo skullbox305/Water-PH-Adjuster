@@ -7,25 +7,17 @@
 #include <unistd.h>
 
 
-
-void initPHAdjusters()
-{
-	if (!phAdjusters.empty())
-	{
-		for (int i = 0; i < phAdjusters.size(); i++)
-		{
-			
-		}
-	}
-}
-
-
 void startPHControl()
 {
 	while (1)
 	{
-		adjustPH();
-		sleep(10);		
+		
+		if (!phSensors.empty())
+		{
+			adjustPH();
+		}
+	
+		sleep(30);		
 	}
 }
 
@@ -34,83 +26,129 @@ void adjustPH()
 {
 	if (!phAdjusters.empty())
 	{
-		for (int i = 0; i < phAdjusters.size(); i++)
+		for (int phAdjObjID = 0; phAdjObjID < phAdjusters.size(); phAdjObjID++)
 		{
-			fillTubesIfNot(i);
+			bool running = phAdjusters[phAdjObjID]->getOperatingStatus(ADJUSTER_ONE);
+			int linkedSlot = phAdjusters[phAdjObjID]->getAssignedPHSlot(ADJUSTER_ONE);
+			
+			if (  running && (linkedSlot != -1) )
+			{
+				adjustPHOne(phAdjObjID);
+			}			
 		}
 	}
 }
 
 
-void fillTubesIfNot(int phAdjObjectID)
+void adjustPHOne(int phAdjObjectID)
 {
-	fillTubes(phAdjObjectID, ADJUSTER_ONE);
-	//fillTubes(phAdjObjectID, ADJUSTER_TWO);
-}
-
-
-void fillTubes(int phAdjObjectID, int adjusterID)
-{
-	if (phAdjusters[phAdjObjectID]->getOperatingStatus(adjusterID) == true)
+	int phSensorSlot = phAdjusters[phAdjObjectID]->getAssignedPHSlot(ADJUSTER_ONE);
+	int mode = phAdjusters[phAdjObjectID]->getMode(ADJUSTER_ONE);
+	float targetPH;
+	float currentPH;
+	bool phDisconnected;
+	bool phSensorActive;
+	
+	if (mode == INTERVAL)
 	{
-		if (phAdjusters[phAdjObjectID]->getPHDownInitStatus(adjusterID) == false)
-		{
-			initPHDown(phAdjObjectID, adjusterID);
-		}
 		
-		if (phAdjusters[phAdjObjectID]->getPHUpInitStatus(adjusterID) == false)
+	}
+	
+	targetPH = phAdjusters[phAdjObjectID]->getTargetPHVal(ADJUSTER_ONE);
+		
+	if (deviceObjectIdList[phSensorSlot - 1] != -1)
+	{
+		phDisconnected = phSensors[deviceObjectIdList[phSensorSlot - 1]]->isDisconnected();
+		phSensorActive = phSensors[deviceObjectIdList[phSensorSlot - 1]]->isOperating();
+				
+		if (!phDisconnected && phSensorActive)
 		{
-			initPHUp(phAdjObjectID, adjusterID);
-		}		
+			currentPH = phSensors[deviceObjectIdList[phSensorSlot - 1]]->getNewPHReading();
+			
+			if ((currentPH >= (targetPH + 0.05)))
+			{
+				adjustPHDown(phAdjObjectID, ADJUSTER_ONE);
+			}
+			else if (currentPH <= (targetPH - 0.05))
+			{
+				adjustPHUp(phAdjObjectID, ADJUSTER_ONE);
+			}
+		}
 	}
 }
 
 
-void initPHDown(int phAdjObjectID, int adjusterID)
+void adjustPHTwo(int phAdjObjectID)
+{
+}
+
+
+
+void adjustPHDown(int phAdjObjectID, int adjusterID)
 {
 	int phSensorSlot = phAdjusters[phAdjObjectID]->getAssignedPHSlot(adjusterID);
-	float phStartValue;
-	float currentPhValue;
+	float targetPHValue = phAdjusters[phAdjObjectID]->getTargetPHVal(adjusterID);
+	float currentPhValue = phSensors[deviceObjectIdList[phSensorSlot - 1]]->getPHReading();
+	bool phDisconnected;
+	bool phSensorActive;
+
+	char buff[10];
+	snprintf(buff, sizeof(buff), "%.2f", currentPhValue);
 	
-	phReadMtx.lock();
-	phStartValue = phSensors[deviceObjectIdList[phSensorSlot]]->getNewPHReading();
-	phReadMtx.unlock();
-	
-	phAdjusters[phAdjObjectID]->startPump(adjusterID, PH_DOWN, 255);
+	phAdjusters[phAdjObjectID]->startPump(adjusterID, PH_DOWN, 260);
+	std::cout << "Slot " << phAdjusters[phAdjObjectID]->getSlotPosition() << ": DOWN - Target PH: " << targetPHValue << "  Current PH: " << buff << std::endl;
 	
 	do
 	{    
-		phReadMtx.lock();
-		currentPhValue = phSensors[deviceObjectIdList[phSensorSlot]]->getNewPHReading();
-		std::cout << "Down - Current PH: " << currentPhValue << std::endl;
-		phReadMtx.unlock();
-	} while ( !(currentPhValue < (phStartValue - 0.05)) );
+		currentPhValue = phSensors[deviceObjectIdList[phSensorSlot - 1]]->getNewPHReading();
+		phDisconnected = phSensors[deviceObjectIdList[phSensorSlot - 1]]->isDisconnected();
+		phSensorActive = phSensors[deviceObjectIdList[phSensorSlot - 1]]->isOperating();
+		snprintf(buff, sizeof(buff), "%.2f", currentPhValue);
+		std::cout << "Slot " << phAdjusters[phAdjObjectID]->getSlotPosition() << ": DOWN - Target PH: " << targetPHValue << "  Current PH: " << buff << std::endl;
+	} while ((currentPhValue > (targetPHValue + 0.08)) && !phDisconnected && phSensorActive);
 	
 	phAdjusters[phAdjObjectID]->stopPump(adjusterID, PH_DOWN);
-	phAdjusters[phAdjObjectID]->setPHDownInitStatus(adjusterID, true);	
 }
 
 
-void initPHUp(int phAdjObjectID, int adjusterID)
+void adjustPHUp(int phAdjObjectID, int adjusterID)
 {
 	int phSensorSlot = phAdjusters[phAdjObjectID]->getAssignedPHSlot(adjusterID);
-	float phStartValue;
-	float currentPhValue;
+	float targetPHValue = phAdjusters[phAdjObjectID]->getTargetPHVal(adjusterID);
+	float currentPhValue = phSensors[deviceObjectIdList[phSensorSlot - 1]]->getPHReading();
+	bool phDisconnected;
+	bool phSensorActive;
 	
-	phReadMtx.lock();
-	phStartValue = phSensors[deviceObjectIdList[phSensorSlot]]->getNewPHReading();
-	phReadMtx.unlock();
+	char buff[10];
+	snprintf(buff, sizeof(buff), "%.2f", currentPhValue);
 	
-	phAdjusters[phAdjObjectID]->startPump(adjusterID, PH_UP, 255);
+	phAdjusters[phAdjObjectID]->startPump(adjusterID, PH_UP, 260);
+	std::cout << "Slot " << phAdjusters[phAdjObjectID]->getSlotPosition() << ": UP - Target PH: " << targetPHValue << "  Current PH: " << buff << std::endl;
 	
 	do
 	{    
-		phReadMtx.lock();
-		currentPhValue = phSensors[deviceObjectIdList[phSensorSlot]]->getNewPHReading();
-		std::cout << "UP - Current PH: " << currentPhValue << std::endl;
-		phReadMtx.unlock();
-	} while (!(currentPhValue > (phStartValue + 0.05)));
+		currentPhValue = phSensors[deviceObjectIdList[phSensorSlot - 1]]->getNewPHReading();
+		phDisconnected = phSensors[deviceObjectIdList[phSensorSlot - 1]]->isDisconnected();
+		phSensorActive = phSensors[deviceObjectIdList[phSensorSlot - 1]]->isOperating();	
+		snprintf(buff, sizeof(buff), "%.2f", currentPhValue);
+		std::cout << "Slot " << phAdjusters[phAdjObjectID]->getSlotPosition() << ": UP - Target PH: " << targetPHValue << "  Current PH: " << buff << std::endl;
+	} while ((currentPhValue < (targetPHValue - 0.08)) && !phDisconnected && phSensorActive);
 	
 	phAdjusters[phAdjObjectID]->stopPump(adjusterID, PH_UP);
-	phAdjusters[phAdjObjectID]->setPHUpInitStatus(adjusterID, true);
 }
+
+
+//void getCurrentTargetPH(int phAdjObjectID, int adjusterID)
+//{
+//	time_t currentDate = time(NULL);
+//	time_t dateNextTick = phAdjusters[phAdjObjectID]->getDateForNextTick();
+//	
+//	if (difftime(currentDate, dateNextTick) > 0) 
+//	{
+//		if
+//	}
+//	
+//
+//	
+//}
+//
